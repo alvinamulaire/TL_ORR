@@ -48,8 +48,9 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
         var token = await GetAccessTokenAsync(cancellationToken);
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
+        var senderUserId = await GetUserIdAsync(_options.SenderUserEmail, cancellationToken);
         var userId = await GetUserIdAsync(_options.TargetUserEmail, cancellationToken);
-        var chatId = await CreateOneOnOneChatAsync(userId, cancellationToken);
+        var chatId = await CreateOneOnOneChatAsync(senderUserId, userId, cancellationToken);
 
         await SendChatMessageAsync(chatId, content, cancellationToken);
     }
@@ -64,6 +65,16 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
 
     private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
     {
+        if (!string.Equals(_options.AuthMode, "DelegatedRefreshToken", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Teams:AuthMode must be DelegatedRefreshToken for Graph chat message sending.");
+        }
+
+        return await GetDelegatedAccessTokenAsync(cancellationToken);
+    }
+
+    private async Task<string> GetDelegatedAccessTokenAsync(CancellationToken cancellationToken)
+    {
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
             $"https://login.microsoftonline.com/{_options.TenantId}/oauth2/v2.0/token");
@@ -72,15 +83,16 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
         {
             ["client_id"] = _options.ClientId,
             ["client_secret"] = _options.ClientSecret,
-            ["scope"] = "https://graph.microsoft.com/.default",
-            ["grant_type"] = "client_credentials"
+            ["refresh_token"] = _options.RefreshToken,
+            ["scope"] = "https://graph.microsoft.com/Chat.ReadWrite https://graph.microsoft.com/ChatMessage.Send https://graph.microsoft.com/User.Read offline_access",
+            ["grant_type"] = "refresh_token"
         });
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
-            throw new InvalidOperationException($"Failed to get Graph token. Status={(int)response.StatusCode}. Body={responseBody}");
+            throw new InvalidOperationException($"Failed to get delegated Graph token. Status={(int)response.StatusCode}. Body={responseBody}");
         }
 
         var tokenResponse = JsonSerializer.Deserialize<TokenResponse>(responseBody, JsonOptions);
@@ -110,14 +122,15 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
         return user.Id;
     }
 
-    private async Task<string> CreateOneOnOneChatAsync(string userId, CancellationToken cancellationToken)
+    private async Task<string> CreateOneOnOneChatAsync(string senderUserId, string targetUserId, CancellationToken cancellationToken)
     {
         var request = new
         {
             chatType = "oneOnOne",
             members = new object[]
             {
-                AadUserConversationMember(userId)
+                AadUserConversationMember(senderUserId),
+                AadUserConversationMember(targetUserId)
             }
         };
 
@@ -171,9 +184,11 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
         if (string.IsNullOrWhiteSpace(_options.TenantId) ||
             string.IsNullOrWhiteSpace(_options.ClientId) ||
             string.IsNullOrWhiteSpace(_options.ClientSecret) ||
+            string.IsNullOrWhiteSpace(_options.RefreshToken) ||
+            string.IsNullOrWhiteSpace(_options.SenderUserEmail) ||
             string.IsNullOrWhiteSpace(_options.TargetUserEmail))
         {
-            throw new InvalidOperationException("Teams options are incomplete. Configure TenantId, ClientId, ClientSecret, and TargetUserEmail.");
+            throw new InvalidOperationException("Teams options are incomplete. Configure TenantId, ClientId, ClientSecret, RefreshToken, SenderUserEmail, and TargetUserEmail.");
         }
     }
 

@@ -39,9 +39,11 @@
 
 - Phase 1 預設使用 `Teams:SendMode = Console`，只將 Teams 訊息寫入 log，不呼叫 Graph。
 - Phase 2 才切換為 `Teams:SendMode = Graph` 並啟用真實 Teams 發送。
-- 使用 Client Credentials Flow 取得 Graph access token。
+- Phase 2 真實 Teams chat message 發送必須使用 delegated token，設定 `Teams:AuthMode = DelegatedRefreshToken`。
+- 使用 refresh token flow 取得 Graph access token。
+- Graph delegated permissions 需包含 `User.Read`、`Chat.ReadWrite`、`ChatMessage.Send`、`offline_access`。
 - 使用 `Teams:TargetUserEmail` 查詢目標使用者。
-- 建立或取得與目標使用者的 1:1 chat。
+- 使用 `Teams:SenderUserEmail` 與 `Teams:TargetUserEmail` 建立或取得 1:1 chat。
 - 透過 Graph `chats/{chat-id}/messages` 發送訊息。
 - 設定不完整時，不應假裝發送成功；需丟出明確錯誤並讓 Worker 寫入 `SendErrorMessage`。
 
@@ -64,9 +66,12 @@
 - 連線字串放在 `ConnectionStrings:DefaultConnection`。
 - Teams 設定放在 `Teams` 區段：
   - `SendMode`：Phase 1 使用 `Console`，Phase 2 使用 `Graph`
+  - `AuthMode`：Phase 2 使用 `DelegatedRefreshToken`
   - `TenantId`
   - `ClientId`
   - `ClientSecret`
+  - `RefreshToken`
+  - `SenderUserEmail`
   - `TargetUserEmail`
 - Worker 設定放在 `Worker` 區段：
   - `IntervalSeconds`

@@ -50,6 +50,51 @@ Development defaults to `Worker:RunOnce = true`, so the worker runs one cycle an
 - The image path is converted from `C:\ImageBackup\...` to `\\192.168.1.100\ImageBackup\...`.
 - The `dbo.ProductIns` SQL row is updated with `IsSentTeams = 1` and a non-null `SentTeamsTime`.
 
+## Phase 2 Graph Mode
+
+Phase 2 sends the notification through Microsoft Graph.
+
+Keep real secrets in .NET User Secrets, not in `appsettings.json`.
+
+Required delegated Graph permissions:
+
+- `User.Read`
+- `Chat.ReadWrite`
+- `ChatMessage.Send`
+- `offline_access`
+
+Create the authorization URL:
+
+```powershell
+.\scripts\new-graph-auth-url.ps1 -TenantId "<tenant-id>" -ClientId "<client-id>"
+```
+
+If script execution is blocked on Windows, run it with:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\new-graph-auth-url.ps1 -TenantId "<tenant-id>" -ClientId "<client-id>"
+```
+
+Open the URL, sign in as the Teams sender account, and copy the returned `code`.
+
+Exchange the code for a refresh token and save Graph secrets:
+
+```powershell
+.\scripts\set-graph-refresh-token-secret.ps1 `
+  -TenantId "<tenant-id>" `
+  -ClientId "<client-id>" `
+  -ClientSecret "<client-secret>" `
+  -AuthorizationCode "<authorization-code>"
+```
+
+Set sender/target and enable Graph mode:
+
+```powershell
+dotnet user-secrets set "Teams:SenderUserEmail" "sender@your-domain.com" --project .\TL_ORR\TL_ORR.csproj
+dotnet user-secrets set "Teams:TargetUserEmail" "alvint@amulaire.com" --project .\TL_ORR\TL_ORR.csproj
+dotnet user-secrets set "Teams:SendMode" "Graph" --project .\TL_ORR\TL_ORR.csproj
+```
+
 ## Publish
 
 ```powershell
