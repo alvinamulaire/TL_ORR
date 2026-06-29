@@ -7,6 +7,7 @@ Phase 1 builds the runnable background workflow without sending real Microsoft T
 - Run as a .NET Worker Service.
 - Connect to MS SQL Server.
 - Query rows where `CheckResult = 'NG'` and `IsSentTeams = 0`.
+- Use `ProductIns.ID` as the update key.
 - Convert `ImagePath` from a local path to a UNC file share path.
 - Log the Teams message content as a Phase 1 simulation.
 - Mark simulated sends as sent by updating `IsSentTeams = 1` and `SentTeamsTime = GETDATE()`.

@@ -2,11 +2,13 @@ namespace TL_ORR.Models;
 
 public sealed class ToolCheckResult
 {
+    public int Id { get; init; }
+
     public string RecordKey
     {
         get
         {
-            return $"{EmployeeNo}/{Sfc}/{ToolId}/{ToolSn}/{CheckedAt:O}/{ImagePath}";
+            return Id.ToString();
         }
     }
 

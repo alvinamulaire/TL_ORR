@@ -1,4 +1,5 @@
 SELECT TOP 20
+    ID,
     EMPLOYEE_NO,
     SFC,
     TOOL_ID,

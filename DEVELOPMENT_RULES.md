@@ -8,7 +8,7 @@
 
 - 資料表使用 `dbo.ProductIns`。
 - 每輪只查詢 `CheckResult = 'NG'` 且 `IsSentTeams = 0` 的資料。
-- `dbo.ProductIns` 目前沒有 `ID` 主鍵欄位可供程式使用，回寫時以 `EMPLOYEE_NO`、`SFC`、`TOOL_ID`、`TOOL_SN`、`DateTime`、`ImagePath` 與 `IsSentTeams = 0` 定位 pending 資料。
+- `dbo.ProductIns` 使用 `ID` 定位 pending 資料，回寫時必須加上 `ID = @ID` 與 `IsSentTeams = 0`，避免重複通知或誤更新。
 - 每批最多查詢 `Worker:BatchSize` 筆，預設 100。
 - 查詢順序依 `DateTime ASC`，先發送較早發生的異常。
 - 成功發送後必須更新：

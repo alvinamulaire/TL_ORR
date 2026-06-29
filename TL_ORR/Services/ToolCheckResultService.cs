@@ -16,6 +16,7 @@ public sealed class ToolCheckResultService : IToolCheckResultService
     {
         const string sql = """
             SELECT TOP (@BatchSize)
+                ID,
                 CAST(EMPLOYEE_NO AS nvarchar(100)) AS EMPLOYEE_NO,
                 CAST(SFC AS nvarchar(100)) AS SFC,
                 CAST(TOOL_ID AS nvarchar(100)) AS TOOL_ID,
@@ -42,13 +43,14 @@ public sealed class ToolCheckResultService : IToolCheckResultService
         {
             results.Add(new ToolCheckResult
             {
-                EmployeeNo = reader.GetString(0),
-                Sfc = reader.GetString(1),
-                ToolId = reader.GetString(2),
-                ToolSn = reader.GetString(3),
-                CheckResult = reader.GetString(4),
-                ImagePath = reader.IsDBNull(5) ? null : reader.GetString(5),
-                CheckedAt = reader.GetDateTime(6)
+                Id = reader.GetInt32(0),
+                EmployeeNo = reader.GetString(1),
+                Sfc = reader.GetString(2),
+                ToolId = reader.GetString(3),
+                ToolSn = reader.GetString(4),
+                CheckResult = reader.GetString(5),
+                ImagePath = reader.IsDBNull(6) ? null : reader.GetString(6),
+                CheckedAt = reader.GetDateTime(7)
             });
         }
 
@@ -63,15 +65,7 @@ public sealed class ToolCheckResultService : IToolCheckResultService
                 IsSentTeams = 1,
                 SentTeamsTime = GETDATE(),
                 SendErrorMessage = NULL
-            WHERE CAST(EMPLOYEE_NO AS nvarchar(100)) = @EMPLOYEE_NO
-              AND CAST(SFC AS nvarchar(100)) = @SFC
-              AND CAST(TOOL_ID AS nvarchar(100)) = @TOOL_ID
-              AND CAST(TOOL_SN AS nvarchar(100)) = @TOOL_SN
-              AND DateTime = @DateTime
-              AND (
-                    (ImagePath IS NULL AND @ImagePath IS NULL)
-                    OR ImagePath = @ImagePath
-                  )
+            WHERE ID = @ID
               AND CheckResult = 'NG'
               AND IsSentTeams = 0;
             """;
@@ -85,15 +79,7 @@ public sealed class ToolCheckResultService : IToolCheckResultService
             UPDATE dbo.ProductIns
             SET
                 SendErrorMessage = @ErrorMessage
-            WHERE CAST(EMPLOYEE_NO AS nvarchar(100)) = @EMPLOYEE_NO
-              AND CAST(SFC AS nvarchar(100)) = @SFC
-              AND CAST(TOOL_ID AS nvarchar(100)) = @TOOL_ID
-              AND CAST(TOOL_SN AS nvarchar(100)) = @TOOL_SN
-              AND DateTime = @DateTime
-              AND (
-                    (ImagePath IS NULL AND @ImagePath IS NULL)
-                    OR ImagePath = @ImagePath
-                  )
+            WHERE ID = @ID
               AND CheckResult = 'NG'
               AND IsSentTeams = 0;
             """;
@@ -107,12 +93,7 @@ public sealed class ToolCheckResultService : IToolCheckResultService
         await connection.OpenAsync(cancellationToken);
 
         await using var command = new SqlCommand(sql, connection);
-        command.Parameters.AddWithValue("@EMPLOYEE_NO", result.EmployeeNo);
-        command.Parameters.AddWithValue("@SFC", result.Sfc);
-        command.Parameters.AddWithValue("@TOOL_ID", result.ToolId);
-        command.Parameters.AddWithValue("@TOOL_SN", result.ToolSn);
-        command.Parameters.AddWithValue("@DateTime", result.CheckedAt);
-        command.Parameters.AddWithValue("@ImagePath", (object?)result.ImagePath ?? DBNull.Value);
+        command.Parameters.AddWithValue("@ID", result.Id);
 
         if (errorMessage is not null)
         {

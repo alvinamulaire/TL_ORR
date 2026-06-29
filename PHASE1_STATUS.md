@@ -5,6 +5,7 @@
 - .NET 8 Worker Service project is implemented.
 - SQL Server access layer is implemented with `Microsoft.Data.SqlClient`.
 - Source table is `dbo.ProductIns`.
+- `dbo.ProductIns.ID` is used as the update key.
 - Pending NG query is implemented:
   - `CheckResult = 'NG'`
   - `IsSentTeams = 0`
