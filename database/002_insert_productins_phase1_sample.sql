@@ -1,4 +1,4 @@
-INSERT INTO dbo.ToolCheckResult
+INSERT INTO dbo.ProductIns
 (
     EMPLOYEE_NO,
     SFC,
@@ -6,7 +6,8 @@ INSERT INTO dbo.ToolCheckResult
     TOOL_SN,
     CheckResult,
     ImagePath,
-    DateTime
+    DateTime,
+    IsSentTeams
 )
 VALUES
 (
@@ -16,6 +17,7 @@ VALUES
     'Z1307695',
     'NG',
     N'C:\ImageBackup\2026\06\26\0123456789\NG\Z1307695_ZE01-25_NG4.jpg',
-    GETDATE()
+    GETDATE(),
+    0
 );
 GO

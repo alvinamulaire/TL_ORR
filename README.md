@@ -16,8 +16,8 @@ Phase 1 builds the runnable background workflow without sending real Microsoft T
 
 Run these scripts in order:
 
-- `database/001_create_tool_check_result.sql`: create `dbo.ToolCheckResult` and the pending notification index.
-- `database/002_insert_phase1_sample.sql`: insert one NG sample row.
+- `database/001_productins_phase1_index.sql`: create the pending notification index for `dbo.ProductIns`.
+- `database/002_insert_productins_phase1_sample.sql`: insert one NG sample row into `dbo.ProductIns`.
 - `database/003_phase1_acceptance_check.sql`: inspect the latest rows after running the worker.
 
 ## Configuration
@@ -47,7 +47,7 @@ Development defaults to `Worker:RunOnce = true`, so the worker runs one cycle an
 - The log contains `Phase 1 Teams message simulation`.
 - The message includes employee number, SFC, Tool ID, Tool SN, check result, image path, and check time.
 - The image path is converted from `C:\ImageBackup\...` to `\\192.168.1.100\ImageBackup\...`.
-- The SQL row is updated with `IsSentTeams = 1` and a non-null `SentTeamsTime`.
+- The `dbo.ProductIns` SQL row is updated with `IsSentTeams = 1` and a non-null `SentTeamsTime`.
 
 ## Publish
 

@@ -6,7 +6,7 @@ public interface IToolCheckResultService
 {
     Task<IReadOnlyList<ToolCheckResult>> GetPendingNgResultsAsync(int batchSize, CancellationToken cancellationToken);
 
-    Task MarkTeamsSentAsync(int id, CancellationToken cancellationToken);
+    Task MarkTeamsSentAsync(ToolCheckResult result, CancellationToken cancellationToken);
 
-    Task MarkTeamsFailedAsync(int id, string errorMessage, CancellationToken cancellationToken);
+    Task MarkTeamsFailedAsync(ToolCheckResult result, string errorMessage, CancellationToken cancellationToken);
 }

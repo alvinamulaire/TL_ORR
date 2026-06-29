@@ -4,6 +4,7 @@
 
 - .NET 8 Worker Service project is implemented.
 - SQL Server access layer is implemented with `Microsoft.Data.SqlClient`.
+- Source table is `dbo.ProductIns`.
 - Pending NG query is implemented:
   - `CheckResult = 'NG'`
   - `IsSentTeams = 0`
@@ -47,8 +48,8 @@ These items require a real SQL Server/database connection before final Phase 1 a
   - `FileShare:ServerIP`
   - `FileShare:ShareName`
   - `Teams:TargetUserEmail`
-- Run `database/001_create_tool_check_result.sql`.
-- Run `database/002_insert_phase1_sample.sql`.
+- Run `database/001_productins_phase1_index.sql`.
+- Run `database/002_insert_productins_phase1_sample.sql`.
 - Run the worker:
 
 ```powershell
@@ -57,7 +58,7 @@ dotnet run --project .\TL_ORR\TL_ORR.csproj
 
 - Confirm the log contains `Phase 1 Teams message simulation`.
 - Run `database/003_phase1_acceptance_check.sql`.
-- Confirm the sample row has `IsSentTeams = 1` and a non-null `SentTeamsTime`.
+- Confirm the `dbo.ProductIns` sample row has `IsSentTeams = 1` and a non-null `SentTeamsTime`.
 
 ## Phase 2 Entry Criteria
 

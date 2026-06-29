@@ -43,6 +43,12 @@ public sealed class UncPathConverter : IUncPathConverter
 
             var relativePath = imagePath[pathRoot.Length..].TrimStart('\\', '/');
             var normalizedRelativePath = relativePath.Replace('/', '\\');
+            var sharePrefix = _options.ShareName.Trim('\\') + "\\";
+
+            if (normalizedRelativePath.StartsWith(sharePrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                normalizedRelativePath = normalizedRelativePath[sharePrefix.Length..];
+            }
 
             return $@"\\{_options.ServerIP}\{_options.ShareName}\{normalizedRelativePath}";
         }

@@ -92,9 +92,9 @@ namespace TL_ORR
                 {
                     var uncImagePath = _uncPathConverter.ConvertToUncPath(result.ImagePath);
                     await _teamsNotifyService.SendAsync(result, uncImagePath, cancellationToken);
-                    await _toolCheckResultService.MarkTeamsSentAsync(result.Id, cancellationToken);
+                    await _toolCheckResultService.MarkTeamsSentAsync(result, cancellationToken);
 
-                    _logger.LogInformation("Teams notification sent. ID={Id}, SFC={Sfc}, ToolId={ToolId}", result.Id, result.Sfc, result.ToolId);
+                    _logger.LogInformation("Teams notification sent. RecordKey={RecordKey}, SFC={Sfc}, ToolId={ToolId}", result.RecordKey, result.Sfc, result.ToolId);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -102,15 +102,15 @@ namespace TL_ORR
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Teams notification failed. ID={Id}", result.Id);
+                    _logger.LogError(ex, "Teams notification failed. RecordKey={RecordKey}", result.RecordKey);
 
                     try
                     {
-                        await _toolCheckResultService.MarkTeamsFailedAsync(result.Id, ex.Message, cancellationToken);
+                        await _toolCheckResultService.MarkTeamsFailedAsync(result, ex.Message, cancellationToken);
                     }
                     catch (Exception updateEx)
                     {
-                        _logger.LogError(updateEx, "Failed to update SendErrorMessage. ID={Id}", result.Id);
+                        _logger.LogError(updateEx, "Failed to update SendErrorMessage. RecordKey={RecordKey}", result.RecordKey);
                     }
                 }
             }

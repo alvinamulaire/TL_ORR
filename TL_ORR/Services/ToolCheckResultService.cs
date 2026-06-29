@@ -16,15 +16,14 @@ public sealed class ToolCheckResultService : IToolCheckResultService
     {
         const string sql = """
             SELECT TOP (@BatchSize)
-                ID,
-                EMPLOYEE_NO,
-                SFC,
-                TOOL_ID,
-                TOOL_SN,
-                CheckResult,
+                CAST(EMPLOYEE_NO AS nvarchar(100)) AS EMPLOYEE_NO,
+                CAST(SFC AS nvarchar(100)) AS SFC,
+                CAST(TOOL_ID AS nvarchar(100)) AS TOOL_ID,
+                CAST(TOOL_SN AS nvarchar(100)) AS TOOL_SN,
+                CAST(CheckResult AS nvarchar(20)) AS CheckResult,
                 ImagePath,
                 DateTime
-            FROM dbo.ToolCheckResult
+            FROM dbo.ProductIns
             WHERE CheckResult = 'NG'
               AND IsSentTeams = 0
             ORDER BY DateTime ASC;
@@ -43,60 +42,88 @@ public sealed class ToolCheckResultService : IToolCheckResultService
         {
             results.Add(new ToolCheckResult
             {
-                Id = reader.GetInt32(0),
-                EmployeeNo = reader.GetString(1),
-                Sfc = reader.GetString(2),
-                ToolId = reader.GetString(3),
-                ToolSn = reader.GetString(4),
-                CheckResult = reader.GetString(5),
-                ImagePath = reader.IsDBNull(6) ? null : reader.GetString(6),
-                CheckedAt = reader.GetDateTime(7)
+                EmployeeNo = reader.GetString(0),
+                Sfc = reader.GetString(1),
+                ToolId = reader.GetString(2),
+                ToolSn = reader.GetString(3),
+                CheckResult = reader.GetString(4),
+                ImagePath = reader.IsDBNull(5) ? null : reader.GetString(5),
+                CheckedAt = reader.GetDateTime(6)
             });
         }
 
         return results;
     }
 
-    public async Task MarkTeamsSentAsync(int id, CancellationToken cancellationToken)
+    public async Task MarkTeamsSentAsync(ToolCheckResult result, CancellationToken cancellationToken)
     {
         const string sql = """
-            UPDATE dbo.ToolCheckResult
+            UPDATE dbo.ProductIns
             SET
                 IsSentTeams = 1,
                 SentTeamsTime = GETDATE(),
                 SendErrorMessage = NULL
-            WHERE ID = @ID;
+            WHERE CAST(EMPLOYEE_NO AS nvarchar(100)) = @EMPLOYEE_NO
+              AND CAST(SFC AS nvarchar(100)) = @SFC
+              AND CAST(TOOL_ID AS nvarchar(100)) = @TOOL_ID
+              AND CAST(TOOL_SN AS nvarchar(100)) = @TOOL_SN
+              AND DateTime = @DateTime
+              AND (
+                    (ImagePath IS NULL AND @ImagePath IS NULL)
+                    OR ImagePath = @ImagePath
+                  )
+              AND CheckResult = 'NG'
+              AND IsSentTeams = 0;
             """;
 
-        await ExecuteStatusCommandAsync(sql, id, null, cancellationToken);
+        await ExecuteStatusCommandAsync(sql, result, null, cancellationToken);
     }
 
-    public async Task MarkTeamsFailedAsync(int id, string errorMessage, CancellationToken cancellationToken)
+    public async Task MarkTeamsFailedAsync(ToolCheckResult result, string errorMessage, CancellationToken cancellationToken)
     {
         const string sql = """
-            UPDATE dbo.ToolCheckResult
+            UPDATE dbo.ProductIns
             SET
                 SendErrorMessage = @ErrorMessage
-            WHERE ID = @ID;
+            WHERE CAST(EMPLOYEE_NO AS nvarchar(100)) = @EMPLOYEE_NO
+              AND CAST(SFC AS nvarchar(100)) = @SFC
+              AND CAST(TOOL_ID AS nvarchar(100)) = @TOOL_ID
+              AND CAST(TOOL_SN AS nvarchar(100)) = @TOOL_SN
+              AND DateTime = @DateTime
+              AND (
+                    (ImagePath IS NULL AND @ImagePath IS NULL)
+                    OR ImagePath = @ImagePath
+                  )
+              AND CheckResult = 'NG'
+              AND IsSentTeams = 0;
             """;
 
-        await ExecuteStatusCommandAsync(sql, id, Truncate(errorMessage, 1000), cancellationToken);
+        await ExecuteStatusCommandAsync(sql, result, Truncate(errorMessage, 1000), cancellationToken);
     }
 
-    private async Task ExecuteStatusCommandAsync(string sql, int id, string? errorMessage, CancellationToken cancellationToken)
+    private async Task ExecuteStatusCommandAsync(string sql, ToolCheckResult result, string? errorMessage, CancellationToken cancellationToken)
     {
         await using var connection = CreateConnection();
         await connection.OpenAsync(cancellationToken);
 
         await using var command = new SqlCommand(sql, connection);
-        command.Parameters.AddWithValue("@ID", id);
+        command.Parameters.AddWithValue("@EMPLOYEE_NO", result.EmployeeNo);
+        command.Parameters.AddWithValue("@SFC", result.Sfc);
+        command.Parameters.AddWithValue("@TOOL_ID", result.ToolId);
+        command.Parameters.AddWithValue("@TOOL_SN", result.ToolSn);
+        command.Parameters.AddWithValue("@DateTime", result.CheckedAt);
+        command.Parameters.AddWithValue("@ImagePath", (object?)result.ImagePath ?? DBNull.Value);
 
         if (errorMessage is not null)
         {
             command.Parameters.AddWithValue("@ErrorMessage", errorMessage);
         }
 
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        var affectedRows = await command.ExecuteNonQueryAsync(cancellationToken);
+        if (affectedRows == 0)
+        {
+            throw new InvalidOperationException($"No pending ProductIns row was updated. RecordKey={result.RecordKey}");
+        }
     }
 
     private SqlConnection CreateConnection()

@@ -36,9 +36,9 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
         if (!IsGraphMode)
         {
             _logger.LogInformation(
-                "Phase 1 Teams message simulation. TargetUserEmail={TargetUserEmail}, ID={Id}, Message={Message}",
+                "Phase 1 Teams message simulation. TargetUserEmail={TargetUserEmail}, RecordKey={RecordKey}, Message={Message}",
                 _options.TargetUserEmail,
-                result.Id,
+                result.RecordKey,
                 content.Replace("<br>", Environment.NewLine, StringComparison.Ordinal));
             return;
         }
