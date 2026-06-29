@@ -39,6 +39,25 @@ Normal `POST /chats/{chat-id}/messages` delivery requires delegated Microsoft Gr
 
 TL_ORR now follows the same SQL connection precedence.
 
+## AmulaireService Reference Check
+
+`C:\Users\alvint\source\repos\AmulaireService` includes an existing internal notification integration:
+
+- API URL setting: `SendMailApiUrl`
+- API key header: `X-Api-Key`
+- DTO: `SendMailDto`
+- HTTP pattern: `POST` JSON to the configured API URL with `X-Api-Key`
+
+This API is a mail notification API rather than Microsoft Graph Teams chat. TL_ORR now supports it through:
+
+- `Teams:SendMode = AmulaireMailApi`
+- `Teams:MailApiUrl`
+- `Teams:MailApiKey`
+- `Teams:TargetUserEmail`
+- `Teams:CcTo`
+
+The API URL and key were saved locally with .NET User Secrets and are not committed to Git.
+
 ## Required Entra App Setup
 
 Create or update an Azure Entra App Registration:

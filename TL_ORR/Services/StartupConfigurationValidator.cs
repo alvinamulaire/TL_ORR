@@ -87,6 +87,11 @@ public sealed class StartupConfigurationValidator : IHostedService
             ValidateGraphOptions(errors);
         }
 
+        if (IsAmulaireMailApiMode)
+        {
+            ValidateAmulaireMailApiOptions(errors);
+        }
+
         return errors;
     }
 
@@ -123,6 +128,19 @@ public sealed class StartupConfigurationValidator : IHostedService
         }
     }
 
+    private void ValidateAmulaireMailApiOptions(List<string> errors)
+    {
+        if (IsMissingOrPlaceholder(_teamsOptions.MailApiUrl, "YOUR_"))
+        {
+            errors.Add("Teams:MailApiUrl must be configured when Teams:SendMode is AmulaireMailApi.");
+        }
+
+        if (IsMissingOrPlaceholder(_teamsOptions.MailApiKey, "YOUR_"))
+        {
+            errors.Add("Teams:MailApiKey must be configured when Teams:SendMode is AmulaireMailApi.");
+        }
+    }
+
     private bool IsGraphMode
     {
         get
@@ -131,10 +149,19 @@ public sealed class StartupConfigurationValidator : IHostedService
         }
     }
 
+    private bool IsAmulaireMailApiMode
+    {
+        get
+        {
+            return string.Equals(_teamsOptions.SendMode, "AmulaireMailApi", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
     private static bool IsSupportedSendMode(string? sendMode)
     {
         return string.Equals(sendMode, "Console", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(sendMode, "Graph", StringComparison.OrdinalIgnoreCase);
+               string.Equals(sendMode, "Graph", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(sendMode, "AmulaireMailApi", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsMissingOrPlaceholder(string? value, string placeholderPrefix)

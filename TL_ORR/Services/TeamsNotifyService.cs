@@ -33,13 +33,19 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
     {
         var content = _messageFormatter.Format(result, imagePath);
 
-        if (!IsGraphMode)
+        if (IsConsoleMode)
         {
             _logger.LogInformation(
                 "Phase 1 Teams message simulation. TargetUserEmail={TargetUserEmail}, RecordKey={RecordKey}, Message={Message}",
                 _options.TargetUserEmail,
                 result.RecordKey,
                 content.Replace("<br>", Environment.NewLine, StringComparison.Ordinal));
+            return;
+        }
+
+        if (IsAmulaireMailApiMode)
+        {
+            await SendAmulaireMailAsync(result, content, cancellationToken);
             return;
         }
 
@@ -55,11 +61,54 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
         await SendChatMessageAsync(chatId, content, cancellationToken);
     }
 
+    private bool IsConsoleMode
+    {
+        get
+        {
+            return string.Equals(_options.SendMode, "Console", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
     private bool IsGraphMode
     {
         get
         {
             return string.Equals(_options.SendMode, "Graph", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private bool IsAmulaireMailApiMode
+    {
+        get
+        {
+            return string.Equals(_options.SendMode, "AmulaireMailApi", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private async Task SendAmulaireMailAsync(ToolCheckResult result, string content, CancellationToken cancellationToken)
+    {
+        ValidateAmulaireMailApiOptions();
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, _options.MailApiUrl);
+        request.Headers.Add("X-Api-Key", _options.MailApiKey);
+
+        var mailRequest = new SendMailRequest
+        {
+            MailTo = SplitRecipients(_options.TargetUserEmail),
+            CcTo = SplitRecipients(_options.CcTo),
+            MailSubject = $"檢測異常通知 - SFC {result.Sfc}",
+            MailBody = content,
+            IsBodyHtmlFormat = true,
+            UseTemplate = true
+        };
+
+        request.Content = JsonContent.Create(mailRequest, options: JsonOptions);
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"Failed to send notification through Amulaire Mail API. Status={(int)response.StatusCode}. Body={responseBody}");
         }
     }
 
@@ -190,6 +239,24 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
         {
             throw new InvalidOperationException("Teams options are incomplete. Configure TenantId, ClientId, ClientSecret, RefreshToken, SenderUserEmail, and TargetUserEmail.");
         }
+    }
+
+    private void ValidateAmulaireMailApiOptions()
+    {
+        if (string.IsNullOrWhiteSpace(_options.MailApiUrl) ||
+            string.IsNullOrWhiteSpace(_options.MailApiKey) ||
+            string.IsNullOrWhiteSpace(_options.TargetUserEmail))
+        {
+            throw new InvalidOperationException("Amulaire Mail API options are incomplete. Configure MailApiUrl, MailApiKey, and TargetUserEmail.");
+        }
+    }
+
+    private static IReadOnlyList<string> SplitRecipients(string recipients)
+    {
+        return recipients
+            .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(static recipient => !string.IsNullOrWhiteSpace(recipient))
+            .ToArray();
     }
 
     private sealed class TokenResponse

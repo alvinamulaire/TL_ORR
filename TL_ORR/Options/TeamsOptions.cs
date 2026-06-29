@@ -17,4 +17,10 @@ public sealed class TeamsOptions
     public string SenderUserEmail { get; init; } = string.Empty;
 
     public string TargetUserEmail { get; init; } = string.Empty;
+
+    public string MailApiUrl { get; init; } = string.Empty;
+
+    public string MailApiKey { get; init; } = string.Empty;
+
+    public string CcTo { get; init; } = string.Empty;
 }

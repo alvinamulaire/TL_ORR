@@ -45,6 +45,7 @@
 - 使用 `Teams:TargetUserEmail` 查詢目標使用者。
 - 使用 `Teams:SenderUserEmail` 與 `Teams:TargetUserEmail` 建立或取得 1:1 chat。
 - 透過 Graph `chats/{chat-id}/messages` 發送訊息。
+- 若使用 AmulaireService 既有內部通知 API，設定 `Teams:SendMode = AmulaireMailApi`，透過 `Teams:MailApiUrl` 與 `Teams:MailApiKey` 發送 `SendMailDto` JSON。
 - 設定不完整時，不應假裝發送成功；需丟出明確錯誤並讓 Worker 寫入 `SendErrorMessage`。
 
 ## 背景服務規則
@@ -73,6 +74,9 @@
   - `RefreshToken`
   - `SenderUserEmail`
   - `TargetUserEmail`
+  - `MailApiUrl`
+  - `MailApiKey`
+  - `CcTo`
 - Worker 設定放在 `Worker` 區段：
   - `IntervalSeconds`
   - `BatchSize`

@@ -111,6 +111,33 @@ $env:Teams__SenderUserEmail = "sender@your-domain.com"
 $env:Teams__TargetUserEmail = "alvint@amulaire.com"
 ```
 
+## Phase 2 Amulaire Mail API Mode
+
+`AmulaireService` uses an internal mail API:
+
+- `SendMailApiUrl`
+- `X-Api-Key`
+- `SendMailDto`
+
+TL_ORR can use the same integration through `Teams:SendMode = AmulaireMailApi`.
+
+Store the API URL and key in User Secrets:
+
+```powershell
+dotnet user-secrets set "Teams:MailApiUrl" "<mail-api-url>" --project .\TL_ORR\TL_ORR.csproj
+dotnet user-secrets set "Teams:MailApiKey" "<mail-api-key>" --project .\TL_ORR\TL_ORR.csproj
+dotnet user-secrets set "Teams:SendMode" "AmulaireMailApi" --project .\TL_ORR\TL_ORR.csproj
+```
+
+The API request body follows the AmulaireService `SendMailDto` shape:
+
+- `MailTo`
+- `CcTo`
+- `MailSubjict`
+- `MailBody`
+- `IsBodyHtmlFormat`
+- `UseTemplate`
+
 ## Publish
 
 ```powershell
