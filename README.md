@@ -83,10 +83,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\set-teams-graph-de
 Enable Graph mode only when you are ready to send real Teams messages:
 
 ```powershell
-dotnet user-secrets set "Teams:SendMode" "Graph" --project .\TL_ORR\TL_ORR.csproj
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\enable-teams-graph-mode.ps1
 ```
 
 On first Graph run, the worker logs a device-code sign-in message. Sign in as the sender account. The token is cached under `Teams:TokenCacheName`, so later runs can reuse it.
+
+Return to Console mode after a real-send test:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\disable-teams-graph-mode.ps1
+```
 
 Environment variable equivalents for deployment:
 
@@ -130,13 +136,13 @@ The API request body follows the AmulaireService `SendMailDto` shape:
 
 ## Phase 2 Graph Acceptance Sample
 
-Insert a single pending NG row:
+Run one Graph acceptance cycle. This inserts one pending NG row, enables Graph mode, runs the worker, and restores Console mode when finished:
 
 ```powershell
-sqlcmd -S 172.16.2.176 -d amulaire_OCR -U sa -P "<password>" -C -i .\database\004_insert_productins_phase2_graph_sample.sql
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-phase2-graph-acceptance.ps1 -Password "<password>"
 ```
 
-Then run the worker with `Teams:SendMode = Graph`.
+Use `-KeepGraphMode` only when you want the worker to stay in real Teams sending mode after the test.
 
 ## Publish
 

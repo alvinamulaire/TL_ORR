@@ -1,7 +1,5 @@
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Azure.Identity;
 using Microsoft.Extensions.Options;
 using Microsoft.Graph;
@@ -94,7 +92,7 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
         {
             MailTo = SplitRecipients(_options.TargetUserEmail),
             CcTo = SplitRecipients(_options.CcTo),
-            MailSubject = $"檢測異常通知 - SFC {result.Sfc}",
+            MailSubject = $"Tool NG Check Notification - SFC {result.Sfc}",
             MailBody = content,
             IsBodyHtmlFormat = true,
             UseTemplate = true
@@ -112,12 +110,19 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
 
     private async Task SendGraphTeamsMessageAsync(string content, CancellationToken cancellationToken)
     {
+        _logger.LogInformation(
+            "Preparing Teams direct message. SenderUserEmail={SenderUserEmail}, TargetUserEmail={TargetUserEmail}",
+            _options.SenderUserEmail,
+            _options.TargetUserEmail);
+
         var senderUserId = await ResolveUserIdAsync(_options.SenderUserEmail, cancellationToken);
         var targetUserId = await ResolveUserIdAsync(_options.TargetUserEmail, cancellationToken);
         if (string.IsNullOrWhiteSpace(senderUserId) || string.IsNullOrWhiteSpace(targetUserId))
         {
             throw new InvalidOperationException($"Cannot resolve sender or target Teams user. Sender={_options.SenderUserEmail}, Target={_options.TargetUserEmail}");
         }
+
+        _logger.LogInformation("Resolved Teams users. SenderUserEmail={SenderUserEmail}, TargetUserEmail={TargetUserEmail}", _options.SenderUserEmail, _options.TargetUserEmail);
 
         var chat = await _graphClient.Value.Chats.PostAsync(
             new Chat
@@ -135,6 +140,8 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
         {
             throw new InvalidOperationException($"Cannot create or resolve one-on-one chat for {_options.TargetUserEmail}.");
         }
+
+        _logger.LogInformation("Teams one-on-one chat is ready. TargetUserEmail={TargetUserEmail}, ChatId={ChatId}", _options.TargetUserEmail, chat.Id);
 
         await _graphClient.Value.Chats[chat.Id].Messages.PostAsync(
             new ChatMessage

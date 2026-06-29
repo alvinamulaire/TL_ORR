@@ -24,8 +24,10 @@ Normal `POST /chats/{chat-id}/messages` delivery requires delegated Microsoft Gr
 - The worker resolves sender and target users by email.
 - The worker creates or returns a one-on-one chat.
 - The worker sends the formatted HTML notification message to the chat.
+- Graph mode logs sender/target resolution and chat creation progress for acceptance troubleshooting.
 - Startup validation prevents Graph mode from starting with incomplete settings.
 - SQL connection string can be supplied with `MSSQL_CONNECTION_STRING`, matching the pattern used by `TestWebApp`.
+- Helper scripts can enable Graph mode, disable Graph mode, and run one Phase 2 Graph acceptance cycle.
 
 ## TestWebApp Reference Check
 
@@ -105,10 +107,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\set-teams-graph-de
 Enable Graph mode only when you are ready to send real Teams messages:
 
 ```powershell
-dotnet user-secrets set "Teams:SendMode" "Graph" --project .\TL_ORR\TL_ORR.csproj
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\enable-teams-graph-mode.ps1
 ```
 
 On first Graph run, follow the device-code sign-in message printed in the logs. Sign in as the sender account.
+
+Return to Console mode after a real-send test:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\disable-teams-graph-mode.ps1
+```
 
 For deployment, use environment variables:
 
@@ -130,7 +138,7 @@ $env:Teams__TargetUserEmail = "alvint@amulaire.com"
 - Run:
 
 ```powershell
-dotnet run --project .\TL_ORR\TL_ORR.csproj
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-phase2-graph-acceptance.ps1 -Password "<password>"
 ```
 
 - Confirm the target user receives the Teams message.
