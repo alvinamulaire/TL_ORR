@@ -90,16 +90,21 @@ Create or update an Azure Entra App Registration:
 
 ## Local Secret Setup
 
-Use .NET User Secrets for sensitive values. Do not commit real tenant, client, secret, or refresh token values.
+Use .NET User Secrets for sensitive values. Do not commit real tenant or client values.
 
 Set sender and target users:
 
 ```powershell
-dotnet user-secrets set "Teams:TenantId" "<tenant-id>" --project .\TL_ORR\TL_ORR.csproj
-dotnet user-secrets set "Teams:ClientId" "<client-id>" --project .\TL_ORR\TL_ORR.csproj
-dotnet user-secrets set "Teams:SenderUserEmail" "sender@your-domain.com" --project .\TL_ORR\TL_ORR.csproj
-dotnet user-secrets set "Teams:TargetUserEmail" "alvint@amulaire.com" --project .\TL_ORR\TL_ORR.csproj
-dotnet user-secrets set "Teams:AuthMode" "DeviceCode" --project .\TL_ORR\TL_ORR.csproj
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\set-teams-graph-devicecode-secrets.ps1 `
+  -TenantId "<tenant-id>" `
+  -ClientId "<client-id>" `
+  -SenderUserEmail "sender@your-domain.com" `
+  -TargetUserEmail "alvint@amulaire.com"
+```
+
+Enable Graph mode only when you are ready to send real Teams messages:
+
+```powershell
 dotnet user-secrets set "Teams:SendMode" "Graph" --project .\TL_ORR\TL_ORR.csproj
 ```
 
@@ -121,6 +126,7 @@ $env:Teams__TargetUserEmail = "alvint@amulaire.com"
 ## Phase 2 Acceptance
 
 - Insert or reset one `dbo.ProductIns` row with `CheckResult = 'NG'` and `IsSentTeams = 0`.
+- Suggested script: `database/004_insert_productins_phase2_graph_sample.sql`.
 - Run:
 
 ```powershell

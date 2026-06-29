@@ -73,11 +73,16 @@ Required delegated Graph permissions:
 Set Graph settings:
 
 ```powershell
-dotnet user-secrets set "Teams:TenantId" "<tenant-id>" --project .\TL_ORR\TL_ORR.csproj
-dotnet user-secrets set "Teams:ClientId" "<client-id>" --project .\TL_ORR\TL_ORR.csproj
-dotnet user-secrets set "Teams:SenderUserEmail" "sender@your-domain.com" --project .\TL_ORR\TL_ORR.csproj
-dotnet user-secrets set "Teams:TargetUserEmail" "alvint@amulaire.com" --project .\TL_ORR\TL_ORR.csproj
-dotnet user-secrets set "Teams:AuthMode" "DeviceCode" --project .\TL_ORR\TL_ORR.csproj
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\set-teams-graph-devicecode-secrets.ps1 `
+  -TenantId "<tenant-id>" `
+  -ClientId "<client-id>" `
+  -SenderUserEmail "sender@your-domain.com" `
+  -TargetUserEmail "alvint@amulaire.com"
+```
+
+Enable Graph mode only when you are ready to send real Teams messages:
+
+```powershell
 dotnet user-secrets set "Teams:SendMode" "Graph" --project .\TL_ORR\TL_ORR.csproj
 ```
 
@@ -122,6 +127,16 @@ The API request body follows the AmulaireService `SendMailDto` shape:
 - `MailBody`
 - `IsBodyHtmlFormat`
 - `UseTemplate`
+
+## Phase 2 Graph Acceptance Sample
+
+Insert a single pending NG row:
+
+```powershell
+sqlcmd -S 172.16.2.176 -d amulaire_OCR -U sa -P "<password>" -C -i .\database\004_insert_productins_phase2_graph_sample.sql
+```
+
+Then run the worker with `Teams:SendMode = Graph`.
 
 ## Publish
 
