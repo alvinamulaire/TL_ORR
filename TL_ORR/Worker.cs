@@ -10,28 +10,42 @@ namespace TL_ORR
         private readonly IToolCheckResultService _toolCheckResultService;
         private readonly ITeamsNotifyService _teamsNotifyService;
         private readonly IUncPathConverter _uncPathConverter;
+        private readonly IHostApplicationLifetime _hostApplicationLifetime;
         private readonly WorkerOptions _options;
+        private readonly TeamsOptions _teamsOptions;
+        private readonly FileShareOptions _fileShareOptions;
 
         public Worker(
             ILogger<Worker> logger,
             IToolCheckResultService toolCheckResultService,
             ITeamsNotifyService teamsNotifyService,
             IUncPathConverter uncPathConverter,
-            IOptions<WorkerOptions> options)
+            IHostApplicationLifetime hostApplicationLifetime,
+            IOptions<WorkerOptions> options,
+            IOptions<TeamsOptions> teamsOptions,
+            IOptions<FileShareOptions> fileShareOptions)
         {
             _logger = logger;
             _toolCheckResultService = toolCheckResultService;
             _teamsNotifyService = teamsNotifyService;
             _uncPathConverter = uncPathConverter;
+            _hostApplicationLifetime = hostApplicationLifetime;
             _options = options.Value;
+            _teamsOptions = teamsOptions.Value;
+            _fileShareOptions = fileShareOptions.Value;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation(
-                "Teams NG notification worker started. IntervalSeconds={IntervalSeconds}, BatchSize={BatchSize}",
+                "Teams NG notification worker started. SendMode={SendMode}, TargetUserEmail={TargetUserEmail}, IntervalSeconds={IntervalSeconds}, BatchSize={BatchSize}, RunOnce={RunOnce}, FileShare=\\\\{ServerIP}\\{ShareName}",
+                _teamsOptions.SendMode,
+                _teamsOptions.TargetUserEmail,
                 IntervalSeconds,
-                BatchSize);
+                BatchSize,
+                _options.RunOnce,
+                _fileShareOptions.ServerIP,
+                _fileShareOptions.ShareName);
 
             while (!stoppingToken.IsCancellationRequested)
             {
@@ -46,6 +60,13 @@ namespace TL_ORR
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Worker cycle failed. The next cycle will retry.");
+                }
+
+                if (_options.RunOnce)
+                {
+                    _logger.LogInformation("Worker:RunOnce is true. Stopping host after one cycle.");
+                    _hostApplicationLifetime.StopApplication();
+                    break;
                 }
 
                 await Task.Delay(TimeSpan.FromSeconds(IntervalSeconds), stoppingToken);

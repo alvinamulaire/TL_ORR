@@ -10,49 +10,15 @@ Phase 1 先完成背景服務主流程，不實際呼叫 Microsoft Graph：
 - 將 Teams 訊息寫入 console/log 模擬發送。
 - 實作 `ImagePath` 轉 UNC 網路路徑。
 - 模擬發送成功後回寫 `IsSentTeams = 1`、`SentTeamsTime = GETDATE()`。
+- Development 環境預設 `Worker:RunOnce = true`，方便單次驗收。
 
-## SQL Schema
+## SQL Scripts
 
-```sql
-CREATE TABLE dbo.ToolCheckResult (
-    ID int IDENTITY(1,1) PRIMARY KEY,
-    EMPLOYEE_NO varchar(20) NOT NULL,
-    SFC varchar(50) NOT NULL,
-    TOOL_ID varchar(50) NOT NULL,
-    TOOL_SN varchar(50) NOT NULL,
-    CheckResult varchar(10) NOT NULL,
-    ImagePath nvarchar(500) NULL,
-    DateTime datetime NOT NULL,
-    IsSentTeams bit NOT NULL DEFAULT 0,
-    SentTeamsTime datetime NULL,
-    SendErrorMessage nvarchar(1000) NULL
-);
-```
+請依序執行：
 
-## Phase 1 測試資料
-
-```sql
-INSERT INTO dbo.ToolCheckResult
-(
-    EMPLOYEE_NO,
-    SFC,
-    TOOL_ID,
-    TOOL_SN,
-    CheckResult,
-    ImagePath,
-    DateTime
-)
-VALUES
-(
-    '1234567',
-    '123456789',
-    'ZE01-25',
-    'Z1307695',
-    'NG',
-    N'C:\ImageBackup\2026\06\26\0123456789\NG\Z1307695_ZE01-25_NG4.jpg',
-    GETDATE()
-);
-```
+- `database/001_create_tool_check_result.sql`：建立資料表與 pending index。
+- `database/002_insert_phase1_sample.sql`：新增一筆 NG 測試資料。
+- `database/003_phase1_acceptance_check.sql`：驗收 Worker 回寫結果。
 
 ## appsettings.json
 
@@ -69,7 +35,8 @@ Phase 1 請保持 `Teams:SendMode` 為 `Console`。
   },
   "Worker": {
     "IntervalSeconds": 60,
-    "BatchSize": 100
+    "BatchSize": 100,
+    "RunOnce": true
   },
   "FileShare": {
     "ServerIP": "192.168.1.100",
@@ -90,3 +57,4 @@ dotnet run --project .\TL_ORR\TL_ORR.csproj
 - 訊息內容包含員工編號、SFC、Tool ID、Tool SN、檢測結果、圖片路徑與檢測時間。
 - 圖片路徑由 `C:\ImageBackup\...` 轉成 `\\192.168.1.100\ImageBackup\...`。
 - SQL 該筆資料更新為 `IsSentTeams = 1` 且 `SentTeamsTime` 有值。
+- Development 環境跑完一輪後會自動停止。

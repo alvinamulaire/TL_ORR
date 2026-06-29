@@ -47,6 +47,7 @@
 ## 背景服務規則
 
 - 輪詢間隔使用 `Worker:IntervalSeconds`，預設 60 秒。
+- Phase 1 可使用 `Worker:RunOnce = true`，跑完一輪後停止 host，方便驗收。
 - 每輪流程：
   1. 查詢尚未通知的 NG 資料。
   2. 逐筆轉換圖片路徑。
@@ -69,6 +70,7 @@
 - Worker 設定放在 `Worker` 區段：
   - `IntervalSeconds`
   - `BatchSize`
+  - `RunOnce`
 - FileShare 設定放在 `FileShare` 區段：
   - `ServerIP`
   - `ShareName`

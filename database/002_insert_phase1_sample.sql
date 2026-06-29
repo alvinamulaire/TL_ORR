@@ -1,0 +1,21 @@
+INSERT INTO dbo.ToolCheckResult
+(
+    EMPLOYEE_NO,
+    SFC,
+    TOOL_ID,
+    TOOL_SN,
+    CheckResult,
+    ImagePath,
+    DateTime
+)
+VALUES
+(
+    '1234567',
+    '123456789',
+    'ZE01-25',
+    'Z1307695',
+    'NG',
+    N'C:\ImageBackup\2026\06\26\0123456789\NG\Z1307695_ZE01-25_NG4.jpg',
+    GETDATE()
+);
+GO
