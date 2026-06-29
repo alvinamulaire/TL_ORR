@@ -28,6 +28,16 @@ Normal `POST /chats/{chat-id}/messages` delivery requires delegated Microsoft Gr
 - Helper scripts are available:
   - `scripts/new-graph-auth-url.ps1`
   - `scripts/set-graph-refresh-token-secret.ps1`
+- SQL connection string can be supplied with `MSSQL_CONNECTION_STRING`, matching the pattern used by `TestWebApp`.
+
+## TestWebApp Reference Check
+
+`C:\Users\alvint\source\repos\TestWebApp` was inspected for Teams/Graph sending code and settings. No Teams or Microsoft Graph message-sending implementation was found in the source project. The reusable integration pattern found there is SQL configuration precedence:
+
+1. `MSSQL_CONNECTION_STRING` environment variable.
+2. `ConnectionStrings:DefaultConnection` from configuration.
+
+TL_ORR now follows the same SQL connection precedence.
 
 ## Required Entra App Setup
 
@@ -75,6 +85,20 @@ Set sender and target users:
 dotnet user-secrets set "Teams:SenderUserEmail" "sender@your-domain.com" --project .\TL_ORR\TL_ORR.csproj
 dotnet user-secrets set "Teams:TargetUserEmail" "alvint@amulaire.com" --project .\TL_ORR\TL_ORR.csproj
 dotnet user-secrets set "Teams:SendMode" "Graph" --project .\TL_ORR\TL_ORR.csproj
+```
+
+For deployment, use environment variables:
+
+```powershell
+$env:MSSQL_CONNECTION_STRING = "Server=...;Database=...;User Id=...;Password=...;TrustServerCertificate=True;"
+$env:Teams__SendMode = "Graph"
+$env:Teams__AuthMode = "DelegatedRefreshToken"
+$env:Teams__TenantId = "<tenant-id>"
+$env:Teams__ClientId = "<client-id>"
+$env:Teams__ClientSecret = "<client-secret>"
+$env:Teams__RefreshToken = "<refresh-token>"
+$env:Teams__SenderUserEmail = "sender@your-domain.com"
+$env:Teams__TargetUserEmail = "alvint@amulaire.com"
 ```
 
 ## Phase 2 Acceptance

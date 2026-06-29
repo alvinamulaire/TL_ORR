@@ -45,7 +45,7 @@ public sealed class StartupConfigurationValidator : IHostedService
     private List<string> Validate()
     {
         var errors = new List<string>();
-        var connectionString = _configuration.GetConnectionString("DefaultConnection");
+        var connectionString = GetConnectionString();
 
         if (IsMissingOrPlaceholder(connectionString, "YOUR_"))
         {
@@ -141,5 +141,11 @@ public sealed class StartupConfigurationValidator : IHostedService
     {
         return string.IsNullOrWhiteSpace(value) ||
                value.Contains(placeholderPrefix, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string? GetConnectionString()
+    {
+        return Environment.GetEnvironmentVariable("MSSQL_CONNECTION_STRING") ??
+               _configuration.GetConnectionString("DefaultConnection");
     }
 }

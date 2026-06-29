@@ -109,10 +109,13 @@ public sealed class ToolCheckResultService : IToolCheckResultService
 
     private SqlConnection CreateConnection()
     {
-        var connectionString = _configuration.GetConnectionString("DefaultConnection");
+        var connectionString =
+            Environment.GetEnvironmentVariable("MSSQL_CONNECTION_STRING") ??
+            _configuration.GetConnectionString("DefaultConnection");
+
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
+            throw new InvalidOperationException("Missing SQL Server connection string. Set MSSQL_CONNECTION_STRING or ConnectionStrings:DefaultConnection.");
         }
 
         return new SqlConnection(connectionString);

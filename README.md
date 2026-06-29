@@ -35,6 +35,8 @@ Use `TL_ORR/appsettings.Example.json` as the reference. Update these values in `
 - `FileShare:ServerIP`
 - `FileShare:ShareName`
 
+Like `TestWebApp`, SQL connection can also be supplied through the `MSSQL_CONNECTION_STRING` environment variable. This is preferred for deployment.
+
 ## Run Phase 1
 
 ```powershell
@@ -93,6 +95,20 @@ Set sender/target and enable Graph mode:
 dotnet user-secrets set "Teams:SenderUserEmail" "sender@your-domain.com" --project .\TL_ORR\TL_ORR.csproj
 dotnet user-secrets set "Teams:TargetUserEmail" "alvint@amulaire.com" --project .\TL_ORR\TL_ORR.csproj
 dotnet user-secrets set "Teams:SendMode" "Graph" --project .\TL_ORR\TL_ORR.csproj
+```
+
+Environment variable equivalents for deployment:
+
+```powershell
+$env:MSSQL_CONNECTION_STRING = "Server=...;Database=...;User Id=...;Password=...;TrustServerCertificate=True;"
+$env:Teams__SendMode = "Graph"
+$env:Teams__AuthMode = "DelegatedRefreshToken"
+$env:Teams__TenantId = "<tenant-id>"
+$env:Teams__ClientId = "<client-id>"
+$env:Teams__ClientSecret = "<client-secret>"
+$env:Teams__RefreshToken = "<refresh-token>"
+$env:Teams__SenderUserEmail = "sender@your-domain.com"
+$env:Teams__TargetUserEmail = "alvint@amulaire.com"
 ```
 
 ## Publish
