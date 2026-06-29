@@ -112,14 +112,9 @@ public sealed class StartupConfigurationValidator : IHostedService
             errors.Add("Teams:ClientSecret must be configured when Teams:SendMode is Graph.");
         }
 
-        if (!string.Equals(_teamsOptions.AuthMode, "DelegatedRefreshToken", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(_teamsOptions.AuthMode, "DeviceCode", StringComparison.OrdinalIgnoreCase))
         {
-            errors.Add("Teams:AuthMode must be DelegatedRefreshToken when Teams:SendMode is Graph.");
-        }
-
-        if (IsMissingOrPlaceholder(_teamsOptions.RefreshToken, "YOUR_"))
-        {
-            errors.Add("Teams:RefreshToken must be configured when Teams:SendMode is Graph.");
+            errors.Add("Teams:AuthMode must be DeviceCode when Teams:SendMode is Graph.");
         }
 
         if (string.IsNullOrWhiteSpace(_teamsOptions.SenderUserEmail))

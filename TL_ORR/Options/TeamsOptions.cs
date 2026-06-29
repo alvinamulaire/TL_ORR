@@ -4,7 +4,7 @@ public sealed class TeamsOptions
 {
     public string SendMode { get; init; } = "Console";
 
-    public string AuthMode { get; init; } = "DelegatedRefreshToken";
+    public string AuthMode { get; init; } = "DeviceCode";
 
     public string TenantId { get; init; } = string.Empty;
 
@@ -12,7 +12,9 @@ public sealed class TeamsOptions
 
     public string ClientSecret { get; init; } = string.Empty;
 
-    public string RefreshToken { get; init; } = string.Empty;
+    public string TokenCacheName { get; init; } = "TL-ORR-Teams-Delegated";
+
+    public string[] DelegatedScopes { get; init; } = ["ChatMessage.Send", "Chat.ReadWrite", "Chat.Create", "User.Read", "User.ReadBasic.All", "offline_access"];
 
     public string SenderUserEmail { get; init; } = string.Empty;
 

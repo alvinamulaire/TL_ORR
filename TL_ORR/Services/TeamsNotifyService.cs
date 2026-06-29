@@ -2,7 +2,10 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Azure.Identity;
 using Microsoft.Extensions.Options;
+using Microsoft.Graph;
+using Microsoft.Graph.Models;
 using TL_ORR.Models;
 using TL_ORR.Options;
 
@@ -16,6 +19,7 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
     private readonly TeamsOptions _options;
     private readonly INotificationMessageFormatter _messageFormatter;
     private readonly ILogger<TeamsNotifyService> _logger;
+    private readonly Lazy<GraphServiceClient> _graphClient;
 
     public TeamsNotifyService(
         HttpClient httpClient,
@@ -27,6 +31,7 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
         _options = options.Value;
         _messageFormatter = messageFormatter;
         _logger = logger;
+        _graphClient = new Lazy<GraphServiceClient>(CreateGraphClient);
     }
 
     public async Task SendAsync(ToolCheckResult result, string imagePath, CancellationToken cancellationToken)
@@ -51,14 +56,7 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
 
         ValidateOptions();
 
-        var token = await GetAccessTokenAsync(cancellationToken);
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        var senderUserId = await GetUserIdAsync(_options.SenderUserEmail, cancellationToken);
-        var userId = await GetUserIdAsync(_options.TargetUserEmail, cancellationToken);
-        var chatId = await CreateOneOnOneChatAsync(senderUserId, userId, cancellationToken);
-
-        await SendChatMessageAsync(chatId, content, cancellationToken);
+        await SendGraphTeamsMessageAsync(content, cancellationToken);
     }
 
     private bool IsConsoleMode
@@ -112,119 +110,92 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
         }
     }
 
-    private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
+    private async Task SendGraphTeamsMessageAsync(string content, CancellationToken cancellationToken)
     {
-        if (!string.Equals(_options.AuthMode, "DelegatedRefreshToken", StringComparison.OrdinalIgnoreCase))
+        var senderUserId = await ResolveUserIdAsync(_options.SenderUserEmail, cancellationToken);
+        var targetUserId = await ResolveUserIdAsync(_options.TargetUserEmail, cancellationToken);
+        if (string.IsNullOrWhiteSpace(senderUserId) || string.IsNullOrWhiteSpace(targetUserId))
         {
-            throw new InvalidOperationException("Teams:AuthMode must be DelegatedRefreshToken for Graph chat message sending.");
+            throw new InvalidOperationException($"Cannot resolve sender or target Teams user. Sender={_options.SenderUserEmail}, Target={_options.TargetUserEmail}");
         }
 
-        return await GetDelegatedAccessTokenAsync(cancellationToken);
-    }
-
-    private async Task<string> GetDelegatedAccessTokenAsync(CancellationToken cancellationToken)
-    {
-        using var request = new HttpRequestMessage(
-            HttpMethod.Post,
-            $"https://login.microsoftonline.com/{_options.TenantId}/oauth2/v2.0/token");
-
-        request.Content = new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            ["client_id"] = _options.ClientId,
-            ["client_secret"] = _options.ClientSecret,
-            ["refresh_token"] = _options.RefreshToken,
-            ["scope"] = "https://graph.microsoft.com/Chat.ReadWrite https://graph.microsoft.com/ChatMessage.Send https://graph.microsoft.com/User.Read offline_access",
-            ["grant_type"] = "refresh_token"
-        });
-
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
-        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException($"Failed to get delegated Graph token. Status={(int)response.StatusCode}. Body={responseBody}");
-        }
-
-        var tokenResponse = JsonSerializer.Deserialize<TokenResponse>(responseBody, JsonOptions);
-        if (string.IsNullOrWhiteSpace(tokenResponse?.AccessToken))
-        {
-            throw new InvalidOperationException("Graph token response did not contain access_token.");
-        }
-
-        return tokenResponse.AccessToken;
-    }
-
-    private async Task<string> GetUserIdAsync(string email, CancellationToken cancellationToken)
-    {
-        using var response = await _httpClient.GetAsync($"https://graph.microsoft.com/v1.0/users/{Uri.EscapeDataString(email)}?$select=id", cancellationToken);
-        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException($"Failed to find Teams target user. Status={(int)response.StatusCode}. Body={responseBody}");
-        }
-
-        var user = JsonSerializer.Deserialize<GraphUserResponse>(responseBody, JsonOptions);
-        if (string.IsNullOrWhiteSpace(user?.Id))
-        {
-            throw new InvalidOperationException($"Graph user response did not contain id for {email}.");
-        }
-
-        return user.Id;
-    }
-
-    private async Task<string> CreateOneOnOneChatAsync(string senderUserId, string targetUserId, CancellationToken cancellationToken)
-    {
-        var request = new
-        {
-            chatType = "oneOnOne",
-            members = new object[]
+        var chat = await _graphClient.Value.Chats.PostAsync(
+            new Chat
             {
-                AadUserConversationMember(senderUserId),
-                AadUserConversationMember(targetUserId)
-            }
-        };
+                ChatType = ChatType.OneOnOne,
+                Members =
+                [
+                    BuildChatMember(senderUserId),
+                    BuildChatMember(targetUserId)
+                ]
+            },
+            cancellationToken: cancellationToken);
 
-        using var response = await _httpClient.PostAsJsonAsync("https://graph.microsoft.com/v1.0/chats", request, JsonOptions, cancellationToken);
-        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException($"Failed to create Teams chat. Status={(int)response.StatusCode}. Body={responseBody}");
-        }
-
-        var chat = JsonSerializer.Deserialize<GraphChatResponse>(responseBody, JsonOptions);
         if (string.IsNullOrWhiteSpace(chat?.Id))
         {
-            throw new InvalidOperationException("Graph chat response did not contain id.");
+            throw new InvalidOperationException($"Cannot create or resolve one-on-one chat for {_options.TargetUserEmail}.");
         }
 
-        return chat.Id;
-    }
-
-    private async Task SendChatMessageAsync(string chatId, string content, CancellationToken cancellationToken)
-    {
-        var request = new
-        {
-            body = new
+        await _graphClient.Value.Chats[chat.Id].Messages.PostAsync(
+            new ChatMessage
             {
-                contentType = "html",
-                content
-            }
-        };
+                Body = new ItemBody
+                {
+                    ContentType = BodyType.Html,
+                    Content = content
+                }
+            },
+            cancellationToken: cancellationToken);
 
-        using var response = await _httpClient.PostAsJsonAsync($"https://graph.microsoft.com/v1.0/chats/{chatId}/messages", request, JsonOptions, cancellationToken);
-        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException($"Failed to send Teams message. Status={(int)response.StatusCode}. Body={responseBody}");
-        }
+        _logger.LogInformation("Teams direct message sent to {TargetUserEmail}.", _options.TargetUserEmail);
     }
 
-    private static object AadUserConversationMember(string userId)
+    private async Task<string?> ResolveUserIdAsync(string userAddressOrId, CancellationToken cancellationToken)
     {
-        return new Dictionary<string, object>
+        var user = await _graphClient.Value.Users[userAddressOrId].GetAsync(cancellationToken: cancellationToken);
+        return user?.Id;
+    }
+
+    private GraphServiceClient CreateGraphClient()
+    {
+        if (string.IsNullOrWhiteSpace(_options.TenantId) || string.IsNullOrWhiteSpace(_options.ClientId))
         {
-            ["@odata.type"] = "#microsoft.graph.aadUserConversationMember",
-            ["roles"] = new[] { "owner" },
-            ["user@odata.bind"] = $"https://graph.microsoft.com/v1.0/users('{userId}')"
+            throw new InvalidOperationException("Teams Graph device code mode requires TenantId and ClientId.");
+        }
+
+        var delegatedCredential = new DeviceCodeCredential(new DeviceCodeCredentialOptions
+        {
+            TenantId = _options.TenantId,
+            ClientId = _options.ClientId,
+            DeviceCodeCallback = async (code, _) =>
+            {
+                _logger.LogWarning("Teams delegated sign-in required. {Message}", code.Message);
+                await Task.CompletedTask;
+            },
+            TokenCachePersistenceOptions = new TokenCachePersistenceOptions
+            {
+                Name = string.IsNullOrWhiteSpace(_options.TokenCacheName)
+                    ? "TL-ORR-Teams-Delegated"
+                    : _options.TokenCacheName
+            }
+        });
+
+        var delegatedScopes = _options.DelegatedScopes.Length == 0
+            ? ["Chat.ReadWrite", "ChatMessage.Send", "User.Read"]
+            : _options.DelegatedScopes;
+
+        return new GraphServiceClient(delegatedCredential, delegatedScopes);
+    }
+
+    private static AadUserConversationMember BuildChatMember(string userId)
+    {
+        return new AadUserConversationMember
+        {
+            Roles = ["owner"],
+            AdditionalData = new Dictionary<string, object>
+            {
+                ["user@odata.bind"] = $"https://graph.microsoft.com/v1.0/users('{userId}')"
+            }
         };
     }
 
@@ -232,12 +203,10 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
     {
         if (string.IsNullOrWhiteSpace(_options.TenantId) ||
             string.IsNullOrWhiteSpace(_options.ClientId) ||
-            string.IsNullOrWhiteSpace(_options.ClientSecret) ||
-            string.IsNullOrWhiteSpace(_options.RefreshToken) ||
             string.IsNullOrWhiteSpace(_options.SenderUserEmail) ||
             string.IsNullOrWhiteSpace(_options.TargetUserEmail))
         {
-            throw new InvalidOperationException("Teams options are incomplete. Configure TenantId, ClientId, ClientSecret, RefreshToken, SenderUserEmail, and TargetUserEmail.");
+            throw new InvalidOperationException("Teams options are incomplete. Configure TenantId, ClientId, SenderUserEmail, and TargetUserEmail.");
         }
     }
 
@@ -259,19 +228,4 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
             .ToArray();
     }
 
-    private sealed class TokenResponse
-    {
-        [JsonPropertyName("access_token")]
-        public string? AccessToken { get; init; }
-    }
-
-    private sealed class GraphUserResponse
-    {
-        public string? Id { get; init; }
-    }
-
-    private sealed class GraphChatResponse
-    {
-        public string? Id { get; init; }
-    }
 }

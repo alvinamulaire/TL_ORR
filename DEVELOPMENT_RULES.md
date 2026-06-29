@@ -39,8 +39,8 @@
 
 - Phase 1 預設使用 `Teams:SendMode = Console`，只將 Teams 訊息寫入 log，不呼叫 Graph。
 - Phase 2 才切換為 `Teams:SendMode = Graph` 並啟用真實 Teams 發送。
-- Phase 2 真實 Teams chat message 發送必須使用 delegated token，設定 `Teams:AuthMode = DelegatedRefreshToken`。
-- 使用 refresh token flow 取得 Graph access token。
+- Phase 2 真實 Teams chat message 發送必須使用 delegated token，設定 `Teams:AuthMode = DeviceCode`。
+- 使用 Azure.Identity `DeviceCodeCredential` 與 persistent token cache 取得 Graph access token，模式對齊 AutomateWork。
 - Graph delegated permissions 需包含 `User.Read`、`Chat.ReadWrite`、`ChatMessage.Send`、`offline_access`。
 - 使用 `Teams:TargetUserEmail` 查詢目標使用者。
 - 使用 `Teams:SenderUserEmail` 與 `Teams:TargetUserEmail` 建立或取得 1:1 chat。
@@ -67,11 +67,12 @@
 - 連線字串放在 `ConnectionStrings:DefaultConnection`。
 - Teams 設定放在 `Teams` 區段：
   - `SendMode`：Phase 1 使用 `Console`，Phase 2 使用 `Graph`
-  - `AuthMode`：Phase 2 使用 `DelegatedRefreshToken`
+  - `AuthMode`：Phase 2 使用 `DeviceCode`
   - `TenantId`
   - `ClientId`
   - `ClientSecret`
-  - `RefreshToken`
+  - `TokenCacheName`
+  - `DelegatedScopes`
   - `SenderUserEmail`
   - `TargetUserEmail`
   - `MailApiUrl`
