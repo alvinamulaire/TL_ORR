@@ -28,6 +28,7 @@ Normal `POST /chats/{chat-id}/messages` delivery requires delegated Microsoft Gr
 - The worker resolves sender and target users by email.
 - The worker creates or returns a one-on-one chat.
 - The worker sends the formatted HTML notification message to the chat.
+- The notification includes the image path and an image link. Inline preview is supported for HTTP/HTTPS image URLs.
 - Graph mode logs sender/target resolution and chat creation progress for acceptance troubleshooting.
 - Startup validation prevents Graph mode from starting with incomplete settings.
 - SQL connection string can be supplied with `MSSQL_CONNECTION_STRING`, matching the pattern used by `TestWebApp`.
