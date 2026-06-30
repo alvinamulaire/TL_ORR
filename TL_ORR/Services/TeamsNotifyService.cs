@@ -65,14 +65,6 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
         }
     }
 
-    private bool IsGraphMode
-    {
-        get
-        {
-            return string.Equals(_options.SendMode, "Graph", StringComparison.OrdinalIgnoreCase);
-        }
-    }
-
     private bool IsAmulaireMailApiMode
     {
         get

@@ -4,6 +4,10 @@
 
 Phase 2 enables real Microsoft Teams delivery through Microsoft Graph while keeping Phase 1 console simulation available.
 
+## Current Status
+
+Phase 2 implementation is complete. The remaining acceptance action is the controlled real-send Graph test, which should be run only when you are ready for the target user to receive a Teams message.
+
 ## Important Graph Constraint
 
 Normal `POST /chats/{chat-id}/messages` delivery requires delegated Microsoft Graph permissions. After reviewing `AutomateWork`, TL_ORR now uses the same device-code delegated flow with persistent token cache.
@@ -30,6 +34,9 @@ Normal `POST /chats/{chat-id}/messages` delivery requires delegated Microsoft Gr
 - Helper scripts can enable Graph mode, disable Graph mode, and run one Phase 2 Graph acceptance cycle.
 - The Phase 2 acceptance script now generates a unique test SFC and verifies the SQL sent status after the worker exits.
 - During acceptance, `Worker:TestSfcFilter` limits the Graph run to the generated test row.
+- No-send Phase 2 preflight checks are available through `scripts/test-phase2-preflight.ps1`.
+- Windows Service deployment environment variables can be configured through `scripts/set-windows-service-env.ps1`.
+- Windows Service installation supports a dedicated service account through `scripts/install-windows-service.ps1 -Credential`.
 
 ## TestWebApp Reference Check
 
@@ -135,6 +142,13 @@ $env:Teams__TargetUserEmail = "alvint@amulaire.com"
 
 ## Phase 2 Acceptance
 
+- Run the no-send preflight:
+
+```powershell
+$env:TL_ORR_SQL_PASSWORD = "<password>"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test-phase2-preflight.ps1
+```
+
 - Insert or reset one `dbo.ProductIns` row with `CheckResult = 'NG'` and `IsSentTeams = 0`.
 - Suggested script: `database/004_insert_productins_phase2_graph_sample.sql`. Pass SQLCMD variable `Sfc` when running it directly.
 - Run:
@@ -149,3 +163,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-phase2-graph-a
   - `IsSentTeams = 1`
   - `SentTeamsTime` is not null
   - `SendErrorMessage = NULL`
+
+## Completion Summary
+
+- Graph DeviceCode Teams direct message delivery is implemented.
+- Console simulation remains available as the safe default.
+- Amulaire Mail API mode is available as an alternate notification channel.
+- SQL sent/failed state handling is implemented.
+- One-row Graph acceptance is isolated with `Worker:TestSfcFilter`.
+- No-send preflight is available before real delivery.
+- Windows Service deployment scripts and environment variable setup are available.

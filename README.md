@@ -94,6 +94,15 @@ Return to Console mode after a real-send test:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\disable-teams-graph-mode.ps1
 ```
 
+Run a no-send Phase 2 preflight before a real Teams test:
+
+```powershell
+$env:TL_ORR_SQL_PASSWORD = "<password>"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test-phase2-preflight.ps1
+```
+
+The preflight checks the .NET project, required Graph user secrets, `sqlcmd`, SQL connectivity, and the `dbo.ProductIns` schema without sending Teams messages.
+
 Environment variable equivalents for deployment:
 
 ```powershell
@@ -161,6 +170,27 @@ Install after publishing:
 .\scripts\install-windows-service.ps1 -PublishDirectory .\publish\TL_ORR
 Start-Service "TL_ORR Teams NG Notify Service"
 ```
+
+Install with a dedicated service account:
+
+```powershell
+$credential = Get-Credential
+.\scripts\install-windows-service.ps1 -PublishDirectory .\publish\TL_ORR -Credential $credential
+```
+
+Set service environment variables for deployment:
+
+```powershell
+.\scripts\set-windows-service-env.ps1 `
+  -SqlConnectionString "Server=...;Database=...;User Id=...;Password=...;TrustServerCertificate=True;" `
+  -SendMode Graph `
+  -TenantId "<tenant-id>" `
+  -ClientId "<client-id>" `
+  -SenderUserEmail "sender@your-domain.com" `
+  -TargetUserEmail "alvint@amulaire.com"
+```
+
+For Graph DeviceCode mode, complete the first delegated sign-in under the same Windows account that runs the service, so the token cache is available to the service process.
 
 Uninstall:
 
