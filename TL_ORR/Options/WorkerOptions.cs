@@ -9,4 +9,6 @@ public sealed class WorkerOptions
     public bool RunOnce { get; init; }
 
     public string TestSfcFilter { get; init; } = string.Empty;
+
+    public int StopAfterConsecutiveCycleFailures { get; init; }
 }

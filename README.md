@@ -194,6 +194,21 @@ Set service environment variables for deployment:
 
 For Graph DeviceCode mode, complete the first delegated sign-in under the same Windows account that runs the service, so the token cache is available to the service process.
 
+Run the Phase 3 deployment preflight before starting the service:
+
+```powershell
+.\scripts\test-phase3-deployment-preflight.ps1
+```
+
+Check or restart the installed service:
+
+```powershell
+.\scripts\get-windows-service-status.ps1
+.\scripts\restart-windows-service.ps1
+```
+
+The service writes to Windows Event Log with source `TL_ORR Teams NG Notify Service`.
+
 Uninstall:
 
 ```powershell

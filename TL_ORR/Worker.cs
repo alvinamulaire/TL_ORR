@@ -14,6 +14,7 @@ namespace TL_ORR
         private readonly WorkerOptions _options;
         private readonly TeamsOptions _teamsOptions;
         private readonly FileShareOptions _fileShareOptions;
+        private int _consecutiveCycleFailures;
 
         public Worker(
             ILogger<Worker> logger,
@@ -38,12 +39,13 @@ namespace TL_ORR
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation(
-                "Teams NG notification worker started. SendMode={SendMode}, TargetUserEmail={TargetUserEmail}, IntervalSeconds={IntervalSeconds}, BatchSize={BatchSize}, RunOnce={RunOnce}, FileShare=\\\\{ServerIP}\\{ShareName}",
+                "Teams NG notification worker started. SendMode={SendMode}, TargetUserEmail={TargetUserEmail}, IntervalSeconds={IntervalSeconds}, BatchSize={BatchSize}, RunOnce={RunOnce}, StopAfterConsecutiveCycleFailures={StopAfterConsecutiveCycleFailures}, FileShare=\\\\{ServerIP}\\{ShareName}",
                 _teamsOptions.SendMode,
                 _teamsOptions.TargetUserEmail,
                 IntervalSeconds,
                 BatchSize,
                 _options.RunOnce,
+                _options.StopAfterConsecutiveCycleFailures,
                 _fileShareOptions.ServerIP,
                 _fileShareOptions.ShareName);
 
@@ -57,6 +59,7 @@ namespace TL_ORR
                 try
                 {
                     await ProcessPendingResultsAsync(stoppingToken);
+                    _consecutiveCycleFailures = 0;
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {
@@ -64,7 +67,21 @@ namespace TL_ORR
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Worker cycle failed. The next cycle will retry.");
+                    _consecutiveCycleFailures++;
+                    _logger.LogError(
+                        ex,
+                        "Worker cycle failed. ConsecutiveCycleFailures={ConsecutiveCycleFailures}, StopAfterConsecutiveCycleFailures={StopAfterConsecutiveCycleFailures}. The next cycle will retry unless the stop threshold is reached.",
+                        _consecutiveCycleFailures,
+                        _options.StopAfterConsecutiveCycleFailures);
+
+                    if (ShouldStopAfterConsecutiveFailures)
+                    {
+                        _logger.LogCritical(
+                            "Worker reached consecutive failure threshold. ConsecutiveCycleFailures={ConsecutiveCycleFailures}. Stopping host.",
+                            _consecutiveCycleFailures);
+                        _hostApplicationLifetime.StopApplication();
+                        break;
+                    }
                 }
 
                 if (_options.RunOnce)
@@ -134,6 +151,15 @@ namespace TL_ORR
             get
             {
                 return Math.Max(1, _options.BatchSize);
+            }
+        }
+
+        private bool ShouldStopAfterConsecutiveFailures
+        {
+            get
+            {
+                return _options.StopAfterConsecutiveCycleFailures > 0 &&
+                       _consecutiveCycleFailures >= _options.StopAfterConsecutiveCycleFailures;
             }
         }
     }

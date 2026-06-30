@@ -62,6 +62,11 @@ public sealed class StartupConfigurationValidator : IHostedService
             errors.Add("Worker:BatchSize must be greater than 0.");
         }
 
+        if (_workerOptions.StopAfterConsecutiveCycleFailures < 0)
+        {
+            errors.Add("Worker:StopAfterConsecutiveCycleFailures must be 0 or greater.");
+        }
+
         if (string.IsNullOrWhiteSpace(_fileShareOptions.ServerIP))
         {
             errors.Add("FileShare:ServerIP must be configured.");

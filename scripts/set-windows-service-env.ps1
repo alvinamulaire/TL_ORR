@@ -14,6 +14,9 @@ param(
     [string]$MailApiUrl,
     [string]$MailApiKey,
     [string]$CcTo,
+    [int]$IntervalSeconds = 60,
+    [int]$BatchSize = 100,
+    [int]$StopAfterConsecutiveCycleFailures = 5,
     [ValidateSet("User", "Machine")]
     [string]$Target = "Machine"
 )
@@ -43,5 +46,9 @@ Set-RequiredEnvironmentVariable -Name "Teams__TargetUserEmail" -Value $TargetUse
 Set-RequiredEnvironmentVariable -Name "Teams__MailApiUrl" -Value $MailApiUrl
 Set-RequiredEnvironmentVariable -Name "Teams__MailApiKey" -Value $MailApiKey
 Set-RequiredEnvironmentVariable -Name "Teams__CcTo" -Value $CcTo
+Set-RequiredEnvironmentVariable -Name "Worker__IntervalSeconds" -Value $IntervalSeconds.ToString()
+Set-RequiredEnvironmentVariable -Name "Worker__BatchSize" -Value $BatchSize.ToString()
+Set-RequiredEnvironmentVariable -Name "Worker__RunOnce" -Value "false"
+Set-RequiredEnvironmentVariable -Name "Worker__StopAfterConsecutiveCycleFailures" -Value $StopAfterConsecutiveCycleFailures.ToString()
 
 Write-Host "Environment variables saved. Restart the Windows Service after changing these values."

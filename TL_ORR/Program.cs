@@ -1,12 +1,20 @@
+using System.Runtime.Versioning;
 using TL_ORR;
 using TL_ORR.Options;
 using TL_ORR.Services;
 
 var builder = Host.CreateApplicationBuilder(args);
+const string ServiceName = "TL_ORR Teams NG Notify Service";
+
 builder.Services.AddWindowsService(options =>
 {
-    options.ServiceName = "TL_ORR Teams NG Notify Service";
+    options.ServiceName = ServiceName;
 });
+
+if (OperatingSystem.IsWindows())
+{
+    ConfigureWindowsEventLog(builder.Logging, ServiceName);
+}
 
 builder.Services.Configure<TeamsOptions>(builder.Configuration.GetSection("Teams"));
 builder.Services.Configure<WorkerOptions>(builder.Configuration.GetSection("Worker"));
@@ -22,3 +30,14 @@ builder.Services.AddHostedService<Worker>();
 
 var host = builder.Build();
 host.Run();
+
+[SupportedOSPlatform("windows")]
+static void ConfigureWindowsEventLog(ILoggingBuilder loggingBuilder, string sourceName)
+{
+    loggingBuilder.AddEventLog(settings =>
+    {
+#pragma warning disable CA1416
+        settings.SourceName = sourceName;
+#pragma warning restore CA1416
+    });
+}
