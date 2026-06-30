@@ -28,6 +28,8 @@ Normal `POST /chats/{chat-id}/messages` delivery requires delegated Microsoft Gr
 - Startup validation prevents Graph mode from starting with incomplete settings.
 - SQL connection string can be supplied with `MSSQL_CONNECTION_STRING`, matching the pattern used by `TestWebApp`.
 - Helper scripts can enable Graph mode, disable Graph mode, and run one Phase 2 Graph acceptance cycle.
+- The Phase 2 acceptance script now generates a unique test SFC and verifies the SQL sent status after the worker exits.
+- During acceptance, `Worker:TestSfcFilter` limits the Graph run to the generated test row.
 
 ## TestWebApp Reference Check
 
@@ -134,11 +136,12 @@ $env:Teams__TargetUserEmail = "alvint@amulaire.com"
 ## Phase 2 Acceptance
 
 - Insert or reset one `dbo.ProductIns` row with `CheckResult = 'NG'` and `IsSentTeams = 0`.
-- Suggested script: `database/004_insert_productins_phase2_graph_sample.sql`.
+- Suggested script: `database/004_insert_productins_phase2_graph_sample.sql`. Pass SQLCMD variable `Sfc` when running it directly.
 - Run:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-phase2-graph-acceptance.ps1 -Password "<password>"
+$env:TL_ORR_SQL_PASSWORD = "<password>"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-phase2-graph-acceptance.ps1
 ```
 
 - Confirm the target user receives the Teams message.

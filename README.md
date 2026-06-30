@@ -139,10 +139,13 @@ The API request body follows the AmulaireService `SendMailDto` shape:
 Run one Graph acceptance cycle. This inserts one pending NG row, enables Graph mode, runs the worker, and restores Console mode when finished:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-phase2-graph-acceptance.ps1 -Password "<password>"
+$env:TL_ORR_SQL_PASSWORD = "<password>"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-phase2-graph-acceptance.ps1
 ```
 
-Use `-KeepGraphMode` only when you want the worker to stay in real Teams sending mode after the test.
+The script generates a unique test SFC, verifies the SQL row after the worker exits, and fails if `IsSentTeams`, `SentTeamsTime`, or `SendErrorMessage` do not match the expected sent state. Use `-KeepGraphMode` only when you want the worker to stay in real Teams sending mode after the test.
+
+During acceptance, the script temporarily sets `Worker:TestSfcFilter` so the Graph run only processes the generated test row.
 
 ## Publish
 

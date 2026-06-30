@@ -79,7 +79,7 @@ public sealed class StartupConfigurationValidator : IHostedService
 
         if (!IsSupportedSendMode(_teamsOptions.SendMode))
         {
-            errors.Add("Teams:SendMode must be Console or Graph.");
+            errors.Add("Teams:SendMode must be Console, Graph, or AmulaireMailApi.");
         }
 
         if (IsGraphMode)
@@ -105,11 +105,6 @@ public sealed class StartupConfigurationValidator : IHostedService
         if (IsMissingOrPlaceholder(_teamsOptions.ClientId, "YOUR_"))
         {
             errors.Add("Teams:ClientId must be configured when Teams:SendMode is Graph.");
-        }
-
-        if (IsMissingOrPlaceholder(_teamsOptions.ClientSecret, "YOUR_"))
-        {
-            errors.Add("Teams:ClientSecret must be configured when Teams:SendMode is Graph.");
         }
 
         if (!string.Equals(_teamsOptions.AuthMode, "DeviceCode", StringComparison.OrdinalIgnoreCase))

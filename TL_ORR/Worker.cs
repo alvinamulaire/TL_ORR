@@ -47,6 +47,11 @@ namespace TL_ORR
                 _fileShareOptions.ServerIP,
                 _fileShareOptions.ShareName);
 
+            if (!string.IsNullOrWhiteSpace(_options.TestSfcFilter))
+            {
+                _logger.LogWarning("Worker:TestSfcFilter is active. Only SFC={Sfc} will be processed.", _options.TestSfcFilter);
+            }
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 try

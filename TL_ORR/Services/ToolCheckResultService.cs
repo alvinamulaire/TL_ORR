@@ -1,15 +1,19 @@
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Options;
 using TL_ORR.Models;
+using TL_ORR.Options;
 
 namespace TL_ORR.Services;
 
 public sealed class ToolCheckResultService : IToolCheckResultService
 {
     private readonly IConfiguration _configuration;
+    private readonly WorkerOptions _workerOptions;
 
-    public ToolCheckResultService(IConfiguration configuration)
+    public ToolCheckResultService(IConfiguration configuration, IOptions<WorkerOptions> workerOptions)
     {
         _configuration = configuration;
+        _workerOptions = workerOptions.Value;
     }
 
     public async Task<IReadOnlyList<ToolCheckResult>> GetPendingNgResultsAsync(int batchSize, CancellationToken cancellationToken)
@@ -27,6 +31,7 @@ public sealed class ToolCheckResultService : IToolCheckResultService
             FROM dbo.ProductIns
             WHERE CheckResult = 'NG'
               AND IsSentTeams = 0
+              AND (@TestSfcFilter = '' OR CAST(SFC AS nvarchar(100)) = @TestSfcFilter)
             ORDER BY DateTime ASC;
             """;
 
@@ -35,6 +40,7 @@ public sealed class ToolCheckResultService : IToolCheckResultService
 
         await using var command = new SqlCommand(sql, connection);
         command.Parameters.AddWithValue("@BatchSize", Math.Max(1, batchSize));
+        command.Parameters.AddWithValue("@TestSfcFilter", _workerOptions.TestSfcFilter.Trim());
 
         var results = new List<ToolCheckResult>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
