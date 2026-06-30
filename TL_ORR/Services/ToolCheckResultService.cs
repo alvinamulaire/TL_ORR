@@ -39,6 +39,7 @@ public sealed class ToolCheckResultService : IToolCheckResultService
         await connection.OpenAsync(cancellationToken);
 
         await using var command = new SqlCommand(sql, connection);
+        command.CommandTimeout = SqlCommandTimeoutSeconds;
         command.Parameters.AddWithValue("@BatchSize", Math.Max(1, batchSize));
         command.Parameters.AddWithValue("@TestSfcFilter", _workerOptions.TestSfcFilter.Trim());
 
@@ -50,11 +51,11 @@ public sealed class ToolCheckResultService : IToolCheckResultService
             results.Add(new ToolCheckResult
             {
                 Id = reader.GetInt32(0),
-                EmployeeNo = reader.GetString(1),
-                Sfc = reader.GetString(2),
-                ToolId = reader.GetString(3),
-                ToolSn = reader.GetString(4),
-                CheckResult = reader.GetString(5),
+                EmployeeNo = GetStringOrEmpty(reader, 1),
+                Sfc = GetStringOrEmpty(reader, 2),
+                ToolId = GetStringOrEmpty(reader, 3),
+                ToolSn = GetStringOrEmpty(reader, 4),
+                CheckResult = GetStringOrEmpty(reader, 5),
                 ImagePath = reader.IsDBNull(6) ? null : reader.GetString(6),
                 CheckedAt = reader.GetDateTime(7)
             });
@@ -99,6 +100,7 @@ public sealed class ToolCheckResultService : IToolCheckResultService
         await connection.OpenAsync(cancellationToken);
 
         await using var command = new SqlCommand(sql, connection);
+        command.CommandTimeout = SqlCommandTimeoutSeconds;
         command.Parameters.AddWithValue("@ID", result.Id);
 
         if (errorMessage is not null)
@@ -125,6 +127,19 @@ public sealed class ToolCheckResultService : IToolCheckResultService
         }
 
         return new SqlConnection(connectionString);
+    }
+
+    private int SqlCommandTimeoutSeconds
+    {
+        get
+        {
+            return Math.Max(1, _workerOptions.SqlCommandTimeoutSeconds);
+        }
+    }
+
+    private static string GetStringOrEmpty(SqlDataReader reader, int ordinal)
+    {
+        return reader.IsDBNull(ordinal) ? string.Empty : reader.GetString(ordinal);
     }
 
     private static string Truncate(string value, int maxLength)

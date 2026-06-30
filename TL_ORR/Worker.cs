@@ -39,12 +39,13 @@ namespace TL_ORR
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation(
-                "Teams NG notification worker started. SendMode={SendMode}, TargetUserEmail={TargetUserEmail}, IntervalSeconds={IntervalSeconds}, BatchSize={BatchSize}, RunOnce={RunOnce}, StopAfterConsecutiveCycleFailures={StopAfterConsecutiveCycleFailures}, FileShare=\\\\{ServerIP}\\{ShareName}",
+                "Teams NG notification worker started. SendMode={SendMode}, TargetUserEmail={TargetUserEmail}, IntervalSeconds={IntervalSeconds}, BatchSize={BatchSize}, RunOnce={RunOnce}, PerRecordTimeoutSeconds={PerRecordTimeoutSeconds}, StopAfterConsecutiveCycleFailures={StopAfterConsecutiveCycleFailures}, FileShare=\\\\{ServerIP}\\{ShareName}",
                 _teamsOptions.SendMode,
                 _teamsOptions.TargetUserEmail,
                 IntervalSeconds,
                 BatchSize,
                 _options.RunOnce,
+                PerRecordTimeoutSeconds,
                 _options.StopAfterConsecutiveCycleFailures,
                 _fileShareOptions.ServerIP,
                 _fileShareOptions.ShareName);
@@ -110,11 +111,14 @@ namespace TL_ORR
 
             foreach (var result in pendingResults)
             {
+                using var recordTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                recordTimeout.CancelAfter(TimeSpan.FromSeconds(PerRecordTimeoutSeconds));
+
                 try
                 {
                     var uncImagePath = _uncPathConverter.ConvertToUncPath(result.ImagePath);
-                    await _teamsNotifyService.SendAsync(result, uncImagePath, cancellationToken);
-                    await _toolCheckResultService.MarkTeamsSentAsync(result, cancellationToken);
+                    await _teamsNotifyService.SendAsync(result, uncImagePath, recordTimeout.Token);
+                    await _toolCheckResultService.MarkTeamsSentAsync(result, recordTimeout.Token);
 
                     _logger.LogInformation("Teams notification sent. RecordKey={RecordKey}, SFC={Sfc}, ToolId={ToolId}", result.RecordKey, result.Sfc, result.ToolId);
                 }
@@ -128,7 +132,7 @@ namespace TL_ORR
 
                     try
                     {
-                        await _toolCheckResultService.MarkTeamsFailedAsync(result, ex.Message, cancellationToken);
+                        await _toolCheckResultService.MarkTeamsFailedAsync(result, BuildFailureMessage(ex, recordTimeout), cancellationToken);
                     }
                     catch (Exception updateEx)
                     {
@@ -161,6 +165,21 @@ namespace TL_ORR
                 return _options.StopAfterConsecutiveCycleFailures > 0 &&
                        _consecutiveCycleFailures >= _options.StopAfterConsecutiveCycleFailures;
             }
+        }
+
+        private int PerRecordTimeoutSeconds
+        {
+            get
+            {
+                return Math.Max(1, _options.PerRecordTimeoutSeconds);
+            }
+        }
+
+        private static string BuildFailureMessage(Exception exception, CancellationTokenSource recordTimeout)
+        {
+            return recordTimeout.IsCancellationRequested
+                ? $"Per-record processing timed out. {exception.Message}"
+                : exception.Message;
         }
     }
 }

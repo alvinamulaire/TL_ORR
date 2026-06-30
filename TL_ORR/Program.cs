@@ -1,4 +1,5 @@
 using System.Runtime.Versioning;
+using Microsoft.Extensions.Options;
 using TL_ORR;
 using TL_ORR.Options;
 using TL_ORR.Services;
@@ -23,7 +24,11 @@ builder.Services.Configure<FileShareOptions>(builder.Configuration.GetSection("F
 builder.Services.AddSingleton<IToolCheckResultService, ToolCheckResultService>();
 builder.Services.AddSingleton<IUncPathConverter, UncPathConverter>();
 builder.Services.AddSingleton<INotificationMessageFormatter, NotificationMessageFormatter>();
-builder.Services.AddHttpClient<ITeamsNotifyService, TeamsNotifyService>();
+builder.Services.AddHttpClient<ITeamsNotifyService, TeamsNotifyService>((serviceProvider, httpClient) =>
+{
+    var teamsOptions = serviceProvider.GetRequiredService<IOptions<TeamsOptions>>().Value;
+    httpClient.Timeout = TimeSpan.FromSeconds(Math.Max(1, teamsOptions.HttpTimeoutSeconds));
+});
 
 builder.Services.AddHostedService<StartupConfigurationValidator>();
 builder.Services.AddHostedService<Worker>();

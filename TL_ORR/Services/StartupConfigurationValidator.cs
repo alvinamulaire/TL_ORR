@@ -67,6 +67,21 @@ public sealed class StartupConfigurationValidator : IHostedService
             errors.Add("Worker:StopAfterConsecutiveCycleFailures must be 0 or greater.");
         }
 
+        if (_workerOptions.SqlCommandTimeoutSeconds <= 0)
+        {
+            errors.Add("Worker:SqlCommandTimeoutSeconds must be greater than 0.");
+        }
+
+        if (_workerOptions.PerRecordTimeoutSeconds <= 0)
+        {
+            errors.Add("Worker:PerRecordTimeoutSeconds must be greater than 0.");
+        }
+
+        if (_teamsOptions.HttpTimeoutSeconds <= 0)
+        {
+            errors.Add("Teams:HttpTimeoutSeconds must be greater than 0.");
+        }
+
         if (string.IsNullOrWhiteSpace(_fileShareOptions.ServerIP))
         {
             errors.Add("FileShare:ServerIP must be configured.");

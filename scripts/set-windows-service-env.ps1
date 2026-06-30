@@ -17,6 +17,9 @@ param(
     [int]$IntervalSeconds = 60,
     [int]$BatchSize = 100,
     [int]$StopAfterConsecutiveCycleFailures = 5,
+    [int]$SqlCommandTimeoutSeconds = 30,
+    [int]$PerRecordTimeoutSeconds = 120,
+    [int]$TeamsHttpTimeoutSeconds = 120,
     [ValidateSet("User", "Machine")]
     [string]$Target = "Machine"
 )
@@ -46,9 +49,12 @@ Set-RequiredEnvironmentVariable -Name "Teams__TargetUserEmail" -Value $TargetUse
 Set-RequiredEnvironmentVariable -Name "Teams__MailApiUrl" -Value $MailApiUrl
 Set-RequiredEnvironmentVariable -Name "Teams__MailApiKey" -Value $MailApiKey
 Set-RequiredEnvironmentVariable -Name "Teams__CcTo" -Value $CcTo
+Set-RequiredEnvironmentVariable -Name "Teams__HttpTimeoutSeconds" -Value $TeamsHttpTimeoutSeconds.ToString()
 Set-RequiredEnvironmentVariable -Name "Worker__IntervalSeconds" -Value $IntervalSeconds.ToString()
 Set-RequiredEnvironmentVariable -Name "Worker__BatchSize" -Value $BatchSize.ToString()
 Set-RequiredEnvironmentVariable -Name "Worker__RunOnce" -Value "false"
 Set-RequiredEnvironmentVariable -Name "Worker__StopAfterConsecutiveCycleFailures" -Value $StopAfterConsecutiveCycleFailures.ToString()
+Set-RequiredEnvironmentVariable -Name "Worker__SqlCommandTimeoutSeconds" -Value $SqlCommandTimeoutSeconds.ToString()
+Set-RequiredEnvironmentVariable -Name "Worker__PerRecordTimeoutSeconds" -Value $PerRecordTimeoutSeconds.ToString()
 
 Write-Host "Environment variables saved. Restart the Windows Service after changing these values."

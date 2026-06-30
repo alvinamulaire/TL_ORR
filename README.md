@@ -207,6 +207,13 @@ Check or restart the installed service:
 .\scripts\restart-windows-service.ps1
 ```
 
+Run a system health check:
+
+```powershell
+$env:TL_ORR_SQL_PASSWORD = "<password>"
+.\scripts\test-system-health.ps1
+```
+
 The service writes to Windows Event Log with source `TL_ORR Teams NG Notify Service`.
 
 Uninstall:

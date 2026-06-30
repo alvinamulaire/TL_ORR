@@ -25,4 +25,6 @@ public sealed class TeamsOptions
     public string MailApiKey { get; init; } = string.Empty;
 
     public string CcTo { get; init; } = string.Empty;
+
+    public int HttpTimeoutSeconds { get; init; } = 120;
 }
