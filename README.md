@@ -28,7 +28,7 @@ For Phase 1, keep `Teams:SendMode` as `Console`.
 Use `TL_ORR/appsettings.Example.json` as the reference. Update these values in `TL_ORR/appsettings.Development.json` for local testing:
 
 - `ConnectionStrings:DefaultConnection`
-- `Teams:TargetUserEmail`
+- `NotificationRecipients:ConnectionString`
 - `Worker:IntervalSeconds`
 - `Worker:BatchSize`
 - `Worker:RunOnce`
@@ -80,6 +80,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\set-teams-graph-de
   -TargetUserEmail "alvint@amulaire.com"
 ```
 
+Set dynamic Teams recipients from AlertDB:
+
+```powershell
+dotnet user-secrets set "NotificationRecipients:Source" "SqlServer" --project .\TL_ORR\TL_ORR.csproj
+dotnet user-secrets set "NotificationRecipients:ConnectionString" "Server=192.168.3.35;Database=AlertDB;User Id=<user>;Password=<password>;TrustServerCertificate=True;" --project .\TL_ORR\TL_ORR.csproj
+dotnet user-secrets set "NotificationRecipients:ProjectGroup" "1" --project .\TL_ORR\TL_ORR.csproj
+```
+
 Enable Graph mode only when you are ready to send real Teams messages:
 
 ```powershell
@@ -115,7 +123,9 @@ $env:Teams__TenantId = "<tenant-id>"
 $env:Teams__ClientId = "<client-id>"
 $env:Teams__TokenCacheName = "TL-ORR-Teams-Delegated"
 $env:Teams__SenderUserEmail = "sender@your-domain.com"
-$env:Teams__TargetUserEmail = "alvint@amulaire.com"
+$env:NOTIFICATION_RECIPIENTS_CONNECTION_STRING = "Server=192.168.3.35;Database=AlertDB;User Id=...;Password=...;TrustServerCertificate=True;"
+$env:NotificationRecipients__Source = "SqlServer"
+$env:NotificationRecipients__ProjectGroup = "1"
 ```
 
 ## Phase 2 Amulaire Mail API Mode
@@ -185,6 +195,7 @@ Set service environment variables for deployment:
 ```powershell
 .\scripts\set-windows-service-env.ps1 `
   -SqlConnectionString "Server=...;Database=...;User Id=...;Password=...;TrustServerCertificate=True;" `
+  -NotificationRecipientsConnectionString "Server=192.168.3.35;Database=AlertDB;User Id=...;Password=...;TrustServerCertificate=True;" `
   -SendMode Graph `
   -TenantId "<tenant-id>" `
   -ClientId "<client-id>" `

@@ -23,9 +23,10 @@ Normal `POST /chats/{chat-id}/messages` delivery requires delegated Microsoft Gr
   - `Teams:TokenCacheName`
   - `Teams:DelegatedScopes`
   - `Teams:SenderUserEmail`
-  - `Teams:TargetUserEmail`
+  - `NotificationRecipients:ConnectionString`
+  - `NotificationRecipients:ProjectGroup`
 - Device-code delegated sign-in with persistent token cache.
-- The worker resolves sender and target users by email.
+- The worker loads target users from AlertDB and resolves sender/target users by email.
 - The worker creates or returns a one-on-one chat.
 - The worker sends the formatted HTML notification message to the chat.
 - The notification includes the image path. Graph mode attempts to embed readable UNC image files as Teams hosted content and falls back to text-only when the image cannot be loaded.
@@ -62,7 +63,7 @@ This API is a mail notification API rather than Microsoft Graph Teams chat. TL_O
 - `Teams:SendMode = AmulaireMailApi`
 - `Teams:MailApiUrl`
 - `Teams:MailApiKey`
-- `Teams:TargetUserEmail`
+- `NotificationRecipients:ConnectionString`
 - `Teams:CcTo`
 
 The API URL and key were saved locally with .NET User Secrets and are not committed to Git.
@@ -104,7 +105,7 @@ Create or update an Azure Entra App Registration:
 
 Use .NET User Secrets for sensitive values. Do not commit real tenant or client values.
 
-Set sender and target users:
+Set sender and fallback target user:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\set-teams-graph-devicecode-secrets.ps1 `
@@ -112,6 +113,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\set-teams-graph-de
   -ClientId "<client-id>" `
   -SenderUserEmail "sender@your-domain.com" `
   -TargetUserEmail "alvint@amulaire.com"
+```
+
+Set dynamic target users from AlertDB:
+
+```powershell
+dotnet user-secrets set "NotificationRecipients:Source" "SqlServer" --project .\TL_ORR\TL_ORR.csproj
+dotnet user-secrets set "NotificationRecipients:ConnectionString" "Server=192.168.3.35;Database=AlertDB;User Id=<user>;Password=<password>;TrustServerCertificate=True;" --project .\TL_ORR\TL_ORR.csproj
+dotnet user-secrets set "NotificationRecipients:ProjectGroup" "1" --project .\TL_ORR\TL_ORR.csproj
 ```
 
 Enable Graph mode only when you are ready to send real Teams messages:
@@ -138,7 +147,9 @@ $env:Teams__TenantId = "<tenant-id>"
 $env:Teams__ClientId = "<client-id>"
 $env:Teams__TokenCacheName = "TL-ORR-Teams-Delegated"
 $env:Teams__SenderUserEmail = "sender@your-domain.com"
-$env:Teams__TargetUserEmail = "alvint@amulaire.com"
+$env:NOTIFICATION_RECIPIENTS_CONNECTION_STRING = "Server=192.168.3.35;Database=AlertDB;User Id=...;Password=...;TrustServerCertificate=True;"
+$env:NotificationRecipients__Source = "SqlServer"
+$env:NotificationRecipients__ProjectGroup = "1"
 ```
 
 ## Phase 2 Acceptance
@@ -159,7 +170,7 @@ $env:TL_ORR_SQL_PASSWORD = "<password>"
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-phase2-graph-acceptance.ps1
 ```
 
-- Confirm the target user receives the Teams message.
+- Confirm the AlertDB recipient users receive the Teams message.
 - Confirm the SQL row is updated:
   - `IsSentTeams = 1`
   - `SentTeamsTime` is not null

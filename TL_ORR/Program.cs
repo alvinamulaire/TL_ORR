@@ -20,8 +20,10 @@ if (OperatingSystem.IsWindows())
 builder.Services.Configure<TeamsOptions>(builder.Configuration.GetSection("Teams"));
 builder.Services.Configure<WorkerOptions>(builder.Configuration.GetSection("Worker"));
 builder.Services.Configure<FileShareOptions>(builder.Configuration.GetSection("FileShare"));
+builder.Services.Configure<NotificationRecipientOptions>(builder.Configuration.GetSection("NotificationRecipients"));
 
 builder.Services.AddSingleton<IToolCheckResultService, ToolCheckResultService>();
+builder.Services.AddSingleton<INotificationRecipientService, NotificationRecipientService>();
 builder.Services.AddSingleton<IUncPathConverter, UncPathConverter>();
 builder.Services.AddSingleton<INotificationMessageFormatter, NotificationMessageFormatter>();
 builder.Services.AddHttpClient<ITeamsNotifyService, TeamsNotifyService>((serviceProvider, httpClient) =>

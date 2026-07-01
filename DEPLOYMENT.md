@@ -21,6 +21,7 @@ C:\Services\TL_ORR
 ```powershell
 .\scripts\set-windows-service-env.ps1 `
   -SqlConnectionString "Server=172.16.2.176;Database=amulaire_OCR;User Id=<user>;Password=<password>;TrustServerCertificate=True;" `
+  -NotificationRecipientsConnectionString "Server=192.168.3.35;Database=AlertDB;User Id=<user>;Password=<password>;TrustServerCertificate=True;" `
   -SendMode Graph `
   -TenantId "<tenant-id>" `
   -ClientId "<client-id>" `

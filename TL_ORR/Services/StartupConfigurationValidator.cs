@@ -9,6 +9,7 @@ public sealed class StartupConfigurationValidator : IHostedService
     private readonly TeamsOptions _teamsOptions;
     private readonly WorkerOptions _workerOptions;
     private readonly FileShareOptions _fileShareOptions;
+    private readonly NotificationRecipientOptions _recipientOptions;
     private readonly ILogger<StartupConfigurationValidator> _logger;
 
     public StartupConfigurationValidator(
@@ -16,12 +17,14 @@ public sealed class StartupConfigurationValidator : IHostedService
         IOptions<TeamsOptions> teamsOptions,
         IOptions<WorkerOptions> workerOptions,
         IOptions<FileShareOptions> fileShareOptions,
+        IOptions<NotificationRecipientOptions> recipientOptions,
         ILogger<StartupConfigurationValidator> logger)
     {
         _configuration = configuration;
         _teamsOptions = teamsOptions.Value;
         _workerOptions = workerOptions.Value;
         _fileShareOptions = fileShareOptions.Value;
+        _recipientOptions = recipientOptions.Value;
         _logger = logger;
     }
 
@@ -97,10 +100,7 @@ public sealed class StartupConfigurationValidator : IHostedService
             errors.Add("FileShare:ShareName must be configured.");
         }
 
-        if (string.IsNullOrWhiteSpace(_teamsOptions.TargetUserEmail))
-        {
-            errors.Add("Teams:TargetUserEmail must be configured.");
-        }
+        ValidateRecipientOptions(errors);
 
         if (!IsSupportedSendMode(_teamsOptions.SendMode))
         {
@@ -143,6 +143,41 @@ public sealed class StartupConfigurationValidator : IHostedService
         }
     }
 
+    private void ValidateRecipientOptions(List<string> errors)
+    {
+        if (!IsSupportedRecipientSource(_recipientOptions.Source))
+        {
+            errors.Add("NotificationRecipients:Source must be SqlServer or Fixed.");
+            return;
+        }
+
+        if (IsSqlServerRecipientSource)
+        {
+            var connectionString =
+                Environment.GetEnvironmentVariable("NOTIFICATION_RECIPIENTS_CONNECTION_STRING") ??
+                _recipientOptions.ConnectionString;
+
+            if (IsMissingOrPlaceholder(connectionString, "YOUR_"))
+            {
+                errors.Add("NotificationRecipients:ConnectionString must be configured when NotificationRecipients:Source is SqlServer.");
+            }
+
+            if (_recipientOptions.ProjectGroup <= 0)
+            {
+                errors.Add("NotificationRecipients:ProjectGroup must be greater than 0.");
+            }
+
+            if (_recipientOptions.CommandTimeoutSeconds <= 0)
+            {
+                errors.Add("NotificationRecipients:CommandTimeoutSeconds must be greater than 0.");
+            }
+        }
+        else if (string.IsNullOrWhiteSpace(_teamsOptions.TargetUserEmail))
+        {
+            errors.Add("Teams:TargetUserEmail must be configured when NotificationRecipients:Source is Fixed.");
+        }
+    }
+
     private void ValidateAmulaireMailApiOptions(List<string> errors)
     {
         if (IsMissingOrPlaceholder(_teamsOptions.MailApiUrl, "YOUR_"))
@@ -172,11 +207,25 @@ public sealed class StartupConfigurationValidator : IHostedService
         }
     }
 
+    private bool IsSqlServerRecipientSource
+    {
+        get
+        {
+            return string.Equals(_recipientOptions.Source, "SqlServer", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
     private static bool IsSupportedSendMode(string? sendMode)
     {
         return string.Equals(sendMode, "Console", StringComparison.OrdinalIgnoreCase) ||
                string.Equals(sendMode, "Graph", StringComparison.OrdinalIgnoreCase) ||
                string.Equals(sendMode, "AmulaireMailApi", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSupportedRecipientSource(string? source)
+    {
+        return string.Equals(source, "SqlServer", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(source, "Fixed", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsMissingOrPlaceholder(string? value, string placeholderPrefix)

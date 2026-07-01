@@ -35,8 +35,9 @@ else {
 
 $requiredEnvNames = @(
     "MSSQL_CONNECTION_STRING",
+    "NOTIFICATION_RECIPIENTS_CONNECTION_STRING",
     "Teams__SendMode",
-    "Teams__TargetUserEmail"
+    "NotificationRecipients__Source"
 )
 
 $graphEnvNames = @(

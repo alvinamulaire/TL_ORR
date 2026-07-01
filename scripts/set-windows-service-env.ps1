@@ -3,6 +3,9 @@ param(
     [string]$SqlConnectionString,
 
     [Parameter(Mandatory = $true)]
+    [string]$NotificationRecipientsConnectionString,
+
+    [Parameter(Mandatory = $true)]
     [ValidateSet("Graph", "AmulaireMailApi", "Console")]
     [string]$SendMode,
 
@@ -22,6 +25,8 @@ param(
     [int]$TeamsHttpTimeoutSeconds = 120,
     [bool]$TeamsInlineImageEnabled = $true,
     [int]$TeamsMaxInlineImageBytes = 4194304,
+    [int]$NotificationRecipientsProjectGroup = 1,
+    [int]$NotificationRecipientsCommandTimeoutSeconds = 30,
     [ValidateSet("User", "Machine")]
     [string]$Target = "Machine"
 )
@@ -41,6 +46,10 @@ function Set-RequiredEnvironmentVariable {
 }
 
 Set-RequiredEnvironmentVariable -Name "MSSQL_CONNECTION_STRING" -Value $SqlConnectionString
+Set-RequiredEnvironmentVariable -Name "NOTIFICATION_RECIPIENTS_CONNECTION_STRING" -Value $NotificationRecipientsConnectionString
+Set-RequiredEnvironmentVariable -Name "NotificationRecipients__Source" -Value "SqlServer"
+Set-RequiredEnvironmentVariable -Name "NotificationRecipients__ProjectGroup" -Value $NotificationRecipientsProjectGroup.ToString()
+Set-RequiredEnvironmentVariable -Name "NotificationRecipients__CommandTimeoutSeconds" -Value $NotificationRecipientsCommandTimeoutSeconds.ToString()
 Set-RequiredEnvironmentVariable -Name "Teams__SendMode" -Value $SendMode
 Set-RequiredEnvironmentVariable -Name "Teams__AuthMode" -Value "DeviceCode"
 Set-RequiredEnvironmentVariable -Name "Teams__TenantId" -Value $TenantId

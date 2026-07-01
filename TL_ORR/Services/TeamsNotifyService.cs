@@ -15,6 +15,7 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
 
     private readonly HttpClient _httpClient;
     private readonly TeamsOptions _options;
+    private readonly INotificationRecipientService _recipientService;
     private readonly INotificationMessageFormatter _messageFormatter;
     private readonly ILogger<TeamsNotifyService> _logger;
     private readonly Lazy<GraphServiceClient> _graphClient;
@@ -22,11 +23,13 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
     public TeamsNotifyService(
         HttpClient httpClient,
         IOptions<TeamsOptions> options,
+        INotificationRecipientService recipientService,
         INotificationMessageFormatter messageFormatter,
         ILogger<TeamsNotifyService> logger)
     {
         _httpClient = httpClient;
         _options = options.Value;
+        _recipientService = recipientService;
         _messageFormatter = messageFormatter;
         _logger = logger;
         _graphClient = new Lazy<GraphServiceClient>(CreateGraphClient);
@@ -35,12 +38,17 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
     public async Task SendAsync(ToolCheckResult result, string imagePath, CancellationToken cancellationToken)
     {
         var content = _messageFormatter.Format(result, imagePath);
+        var recipientEmails = await _recipientService.GetRecipientEmailsAsync(cancellationToken);
+        if (recipientEmails.Count == 0)
+        {
+            throw new InvalidOperationException("No Teams notification recipients were resolved.");
+        }
 
         if (IsConsoleMode)
         {
             _logger.LogInformation(
-                "Phase 1 Teams message simulation. TargetUserEmail={TargetUserEmail}, RecordKey={RecordKey}, Message={Message}",
-                _options.TargetUserEmail,
+                "Phase 1 Teams message simulation. TargetUserEmails={TargetUserEmails}, RecordKey={RecordKey}, Message={Message}",
+                string.Join(';', recipientEmails),
                 result.RecordKey,
                 content.Replace("<br>", Environment.NewLine, StringComparison.Ordinal));
             return;
@@ -48,13 +56,13 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
 
         if (IsAmulaireMailApiMode)
         {
-            await SendAmulaireMailAsync(result, content, cancellationToken);
+            await SendAmulaireMailAsync(result, content, recipientEmails, cancellationToken);
             return;
         }
 
         ValidateOptions();
 
-        await SendGraphTeamsMessageAsync(content, imagePath, cancellationToken);
+        await SendGraphTeamsMessagesAsync(content, imagePath, recipientEmails, cancellationToken);
     }
 
     private bool IsConsoleMode
@@ -73,7 +81,7 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
         }
     }
 
-    private async Task SendAmulaireMailAsync(ToolCheckResult result, string content, CancellationToken cancellationToken)
+    private async Task SendAmulaireMailAsync(ToolCheckResult result, string content, IReadOnlyList<string> recipientEmails, CancellationToken cancellationToken)
     {
         ValidateAmulaireMailApiOptions();
 
@@ -82,7 +90,7 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
 
         var mailRequest = new SendMailRequest
         {
-            MailTo = SplitRecipients(_options.TargetUserEmail),
+            MailTo = recipientEmails,
             CcTo = SplitRecipients(_options.CcTo),
             MailSubject = $"Tool NG Check Notification - SFC {result.Sfc}",
             MailBody = content,
@@ -100,21 +108,34 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
         }
     }
 
-    private async Task SendGraphTeamsMessageAsync(string content, string imagePath, CancellationToken cancellationToken)
+    private async Task SendGraphTeamsMessagesAsync(string content, string imagePath, IReadOnlyList<string> recipientEmails, CancellationToken cancellationToken)
     {
         _logger.LogInformation(
-            "Preparing Teams direct message. SenderUserEmail={SenderUserEmail}, TargetUserEmail={TargetUserEmail}",
+            "Preparing Teams direct message(s). SenderUserEmail={SenderUserEmail}, TargetUserEmails={TargetUserEmails}",
             _options.SenderUserEmail,
-            _options.TargetUserEmail);
+            string.Join(';', recipientEmails));
 
         var senderUserId = await ResolveUserIdAsync(_options.SenderUserEmail, cancellationToken);
-        var targetUserId = await ResolveUserIdAsync(_options.TargetUserEmail, cancellationToken);
-        if (string.IsNullOrWhiteSpace(senderUserId) || string.IsNullOrWhiteSpace(targetUserId))
+        if (string.IsNullOrWhiteSpace(senderUserId))
         {
-            throw new InvalidOperationException($"Cannot resolve sender or target Teams user. Sender={_options.SenderUserEmail}, Target={_options.TargetUserEmail}");
+            throw new InvalidOperationException($"Cannot resolve sender Teams user. Sender={_options.SenderUserEmail}");
         }
 
-        _logger.LogInformation("Resolved Teams users. SenderUserEmail={SenderUserEmail}, TargetUserEmail={TargetUserEmail}", _options.SenderUserEmail, _options.TargetUserEmail);
+        foreach (var recipientEmail in recipientEmails)
+        {
+            await SendGraphTeamsMessageAsync(content, imagePath, senderUserId, recipientEmail, cancellationToken);
+        }
+    }
+
+    private async Task SendGraphTeamsMessageAsync(string content, string imagePath, string senderUserId, string recipientEmail, CancellationToken cancellationToken)
+    {
+        var targetUserId = await ResolveUserIdAsync(recipientEmail, cancellationToken);
+        if (string.IsNullOrWhiteSpace(targetUserId))
+        {
+            throw new InvalidOperationException($"Cannot resolve target Teams user. Target={recipientEmail}");
+        }
+
+        _logger.LogInformation("Resolved Teams users. SenderUserEmail={SenderUserEmail}, TargetUserEmail={TargetUserEmail}", _options.SenderUserEmail, recipientEmail);
 
         var chat = await _graphClient.Value.Chats.PostAsync(
             new Chat
@@ -130,16 +151,16 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
 
         if (string.IsNullOrWhiteSpace(chat?.Id))
         {
-            throw new InvalidOperationException($"Cannot create or resolve one-on-one chat for {_options.TargetUserEmail}.");
+            throw new InvalidOperationException($"Cannot create or resolve one-on-one chat for {recipientEmail}.");
         }
 
-        _logger.LogInformation("Teams one-on-one chat is ready. TargetUserEmail={TargetUserEmail}, ChatId={ChatId}", _options.TargetUserEmail, chat.Id);
+        _logger.LogInformation("Teams one-on-one chat is ready. TargetUserEmail={TargetUserEmail}, ChatId={ChatId}", recipientEmail, chat.Id);
 
         var message = await BuildGraphMessageAsync(content, imagePath, cancellationToken);
 
         await _graphClient.Value.Chats[chat.Id].Messages.PostAsync(message, cancellationToken: cancellationToken);
 
-        _logger.LogInformation("Teams direct message sent to {TargetUserEmail}.", _options.TargetUserEmail);
+        _logger.LogInformation("Teams direct message sent to {TargetUserEmail}.", recipientEmail);
     }
 
     private async Task<ChatMessage> BuildGraphMessageAsync(string content, string imagePath, CancellationToken cancellationToken)
@@ -285,20 +306,18 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
     {
         if (string.IsNullOrWhiteSpace(_options.TenantId) ||
             string.IsNullOrWhiteSpace(_options.ClientId) ||
-            string.IsNullOrWhiteSpace(_options.SenderUserEmail) ||
-            string.IsNullOrWhiteSpace(_options.TargetUserEmail))
+            string.IsNullOrWhiteSpace(_options.SenderUserEmail))
         {
-            throw new InvalidOperationException("Teams options are incomplete. Configure TenantId, ClientId, SenderUserEmail, and TargetUserEmail.");
+            throw new InvalidOperationException("Teams options are incomplete. Configure TenantId, ClientId, and SenderUserEmail.");
         }
     }
 
     private void ValidateAmulaireMailApiOptions()
     {
         if (string.IsNullOrWhiteSpace(_options.MailApiUrl) ||
-            string.IsNullOrWhiteSpace(_options.MailApiKey) ||
-            string.IsNullOrWhiteSpace(_options.TargetUserEmail))
+            string.IsNullOrWhiteSpace(_options.MailApiKey))
         {
-            throw new InvalidOperationException("Amulaire Mail API options are incomplete. Configure MailApiUrl, MailApiKey, and TargetUserEmail.");
+            throw new InvalidOperationException("Amulaire Mail API options are incomplete. Configure MailApiUrl and MailApiKey.");
         }
     }
 

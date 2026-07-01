@@ -14,6 +14,7 @@ namespace TL_ORR
         private readonly WorkerOptions _options;
         private readonly TeamsOptions _teamsOptions;
         private readonly FileShareOptions _fileShareOptions;
+        private readonly NotificationRecipientOptions _recipientOptions;
         private int _consecutiveCycleFailures;
 
         public Worker(
@@ -24,7 +25,8 @@ namespace TL_ORR
             IHostApplicationLifetime hostApplicationLifetime,
             IOptions<WorkerOptions> options,
             IOptions<TeamsOptions> teamsOptions,
-            IOptions<FileShareOptions> fileShareOptions)
+            IOptions<FileShareOptions> fileShareOptions,
+            IOptions<NotificationRecipientOptions> recipientOptions)
         {
             _logger = logger;
             _toolCheckResultService = toolCheckResultService;
@@ -34,14 +36,16 @@ namespace TL_ORR
             _options = options.Value;
             _teamsOptions = teamsOptions.Value;
             _fileShareOptions = fileShareOptions.Value;
+            _recipientOptions = recipientOptions.Value;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation(
-                "Teams NG notification worker started. SendMode={SendMode}, TargetUserEmail={TargetUserEmail}, IntervalSeconds={IntervalSeconds}, BatchSize={BatchSize}, RunOnce={RunOnce}, PerRecordTimeoutSeconds={PerRecordTimeoutSeconds}, StopAfterConsecutiveCycleFailures={StopAfterConsecutiveCycleFailures}, FileShare=\\\\{ServerIP}\\{ShareName}",
+                "Teams NG notification worker started. SendMode={SendMode}, RecipientSource={RecipientSource}, RecipientProjectGroup={RecipientProjectGroup}, IntervalSeconds={IntervalSeconds}, BatchSize={BatchSize}, RunOnce={RunOnce}, PerRecordTimeoutSeconds={PerRecordTimeoutSeconds}, StopAfterConsecutiveCycleFailures={StopAfterConsecutiveCycleFailures}, FileShare=\\\\{ServerIP}\\{ShareName}",
                 _teamsOptions.SendMode,
-                _teamsOptions.TargetUserEmail,
+                _recipientOptions.Source,
+                _recipientOptions.ProjectGroup,
                 IntervalSeconds,
                 BatchSize,
                 _options.RunOnce,

@@ -68,7 +68,7 @@ $requiredSecrets = @(
     "Teams:TenantId",
     "Teams:ClientId",
     "Teams:SenderUserEmail",
-    "Teams:TargetUserEmail"
+    "NotificationRecipients:ConnectionString"
 )
 
 foreach ($secretName in $requiredSecrets) {
@@ -77,6 +77,37 @@ foreach ($secretName in $requiredSecrets) {
     }
     else {
         Add-Failure "Missing user secret: $secretName"
+    }
+}
+
+$recipientConnectionStringLine = $secretOutput | Where-Object { $_.StartsWith("NotificationRecipients:ConnectionString = ", [StringComparison]::OrdinalIgnoreCase) } | Select-Object -First 1
+if ($recipientConnectionStringLine -and -not $SkipSql) {
+    $recipientConnectionString = $recipientConnectionStringLine.Substring("NotificationRecipients:ConnectionString = ".Length)
+    $recipientQuery = @"
+SET NOCOUNT ON;
+SELECT COUNT(*)
+FROM dbo.N8N_NotifyLevel_ATT
+WHERE Project_Group = 1
+  AND NULLIF(LTRIM(RTRIM(CAST(Email AS nvarchar(320)))), '') IS NOT NULL;
+"@
+
+    $recipientConnection = New-Object System.Data.SqlClient.SqlConnection($recipientConnectionString)
+    try {
+        $recipientConnection.Open()
+        $recipientCommand = $recipientConnection.CreateCommand()
+        $recipientCommand.CommandText = $recipientQuery
+        $recipientCommand.CommandTimeout = 30
+        $recipientCount = [int]$recipientCommand.ExecuteScalar()
+
+        if ($recipientCount -gt 0) {
+            Add-Pass "AlertDB recipient query returned $recipientCount recipient(s)."
+        }
+        else {
+            Add-Failure "AlertDB recipient query returned no recipients for Project_Group=1."
+        }
+    }
+    finally {
+        $recipientConnection.Dispose()
     }
 }
 
