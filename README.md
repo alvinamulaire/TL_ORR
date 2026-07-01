@@ -49,7 +49,7 @@ Development defaults to `Worker:RunOnce = true`, so the worker runs one cycle an
 
 - The log contains `Phase 1 Teams message simulation`.
 - The message includes employee number, SFC, Tool ID, Tool SN, check result, check time, and image path.
-- The image path is converted from `C:\ImageBackup\...` to `\\172.16.2.176\ImageBackup\...`.
+- The image path is converted from `C:\ImageBackup\...` to `\\TL_ZE01AOI\ImageBackup\...`.
 - The `dbo.ProductIns` SQL row is updated with `IsSentTeams = 1` and a non-null `SentTeamsTime`.
 
 ## Phase 2 Graph Teams Mode
