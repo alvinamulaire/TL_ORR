@@ -20,6 +20,8 @@ param(
     [int]$SqlCommandTimeoutSeconds = 30,
     [int]$PerRecordTimeoutSeconds = 120,
     [int]$TeamsHttpTimeoutSeconds = 120,
+    [bool]$TeamsInlineImageEnabled = $true,
+    [int]$TeamsMaxInlineImageBytes = 4194304,
     [ValidateSet("User", "Machine")]
     [string]$Target = "Machine"
 )
@@ -50,6 +52,8 @@ Set-RequiredEnvironmentVariable -Name "Teams__MailApiUrl" -Value $MailApiUrl
 Set-RequiredEnvironmentVariable -Name "Teams__MailApiKey" -Value $MailApiKey
 Set-RequiredEnvironmentVariable -Name "Teams__CcTo" -Value $CcTo
 Set-RequiredEnvironmentVariable -Name "Teams__HttpTimeoutSeconds" -Value $TeamsHttpTimeoutSeconds.ToString()
+Set-RequiredEnvironmentVariable -Name "Teams__InlineImageEnabled" -Value $TeamsInlineImageEnabled.ToString().ToLowerInvariant()
+Set-RequiredEnvironmentVariable -Name "Teams__MaxInlineImageBytes" -Value $TeamsMaxInlineImageBytes.ToString()
 Set-RequiredEnvironmentVariable -Name "Worker__IntervalSeconds" -Value $IntervalSeconds.ToString()
 Set-RequiredEnvironmentVariable -Name "Worker__BatchSize" -Value $BatchSize.ToString()
 Set-RequiredEnvironmentVariable -Name "Worker__RunOnce" -Value "false"

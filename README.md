@@ -88,7 +88,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\enable-teams-graph
 
 On first Graph run, the worker logs a device-code sign-in message. Sign in as the sender account. The token is cached under `Teams:TokenCacheName`, so later runs can reuse it.
 
-The Teams message shows the UNC image path as text. Inline image preview is only added when the image source is an HTTP or HTTPS URL that Teams can access.
+The Teams message shows the UNC image path as text. In Graph mode, the worker also attempts to read the image file from the UNC path and embed it as Teams hosted content. If the file is missing, inaccessible, or larger than `Teams:MaxInlineImageBytes`, the message is still sent with the text path only.
 
 Return to Console mode after a real-send test:
 

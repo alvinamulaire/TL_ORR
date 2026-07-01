@@ -54,7 +54,7 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
 
         ValidateOptions();
 
-        await SendGraphTeamsMessageAsync(content, cancellationToken);
+        await SendGraphTeamsMessageAsync(content, imagePath, cancellationToken);
     }
 
     private bool IsConsoleMode
@@ -100,7 +100,7 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
         }
     }
 
-    private async Task SendGraphTeamsMessageAsync(string content, CancellationToken cancellationToken)
+    private async Task SendGraphTeamsMessageAsync(string content, string imagePath, CancellationToken cancellationToken)
     {
         _logger.LogInformation(
             "Preparing Teams direct message. SenderUserEmail={SenderUserEmail}, TargetUserEmail={TargetUserEmail}",
@@ -135,18 +135,88 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
 
         _logger.LogInformation("Teams one-on-one chat is ready. TargetUserEmail={TargetUserEmail}, ChatId={ChatId}", _options.TargetUserEmail, chat.Id);
 
-        await _graphClient.Value.Chats[chat.Id].Messages.PostAsync(
-            new ChatMessage
-            {
-                Body = new ItemBody
-                {
-                    ContentType = BodyType.Html,
-                    Content = content
-                }
-            },
-            cancellationToken: cancellationToken);
+        var message = await BuildGraphMessageAsync(content, imagePath, cancellationToken);
+
+        await _graphClient.Value.Chats[chat.Id].Messages.PostAsync(message, cancellationToken: cancellationToken);
 
         _logger.LogInformation("Teams direct message sent to {TargetUserEmail}.", _options.TargetUserEmail);
+    }
+
+    private async Task<ChatMessage> BuildGraphMessageAsync(string content, string imagePath, CancellationToken cancellationToken)
+    {
+        var message = new ChatMessage
+        {
+            Body = new ItemBody
+            {
+                ContentType = BodyType.Html,
+                Content = content
+            }
+        };
+
+        var inlineImage = await TryBuildInlineImageAsync(imagePath, cancellationToken);
+        if (inlineImage is null)
+        {
+            return message;
+        }
+
+        message.Body.Content = $"{content}<br><img src=\"../hostedContents/1/$value\" alt=\"Tool NG image\" />";
+        message.HostedContents = [inlineImage];
+
+        return message;
+    }
+
+    private async Task<ChatMessageHostedContent?> TryBuildInlineImageAsync(string imagePath, CancellationToken cancellationToken)
+    {
+        if (!_options.InlineImageEnabled || string.IsNullOrWhiteSpace(imagePath))
+        {
+            return null;
+        }
+
+        if (Uri.TryCreate(imagePath, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            _logger.LogInformation("Skipping Graph hosted content for HTTP image path. ImagePath={ImagePath}", imagePath);
+            return null;
+        }
+
+        try
+        {
+            var fileInfo = new FileInfo(imagePath);
+            if (!fileInfo.Exists)
+            {
+                _logger.LogWarning("Inline image file does not exist or is not accessible. ImagePath={ImagePath}", imagePath);
+                return null;
+            }
+
+            if (fileInfo.Length > _options.MaxInlineImageBytes)
+            {
+                _logger.LogWarning(
+                    "Inline image file is too large. ImagePath={ImagePath}, Size={Size}, MaxInlineImageBytes={MaxInlineImageBytes}",
+                    imagePath,
+                    fileInfo.Length,
+                    _options.MaxInlineImageBytes);
+                return null;
+            }
+
+            var contentBytes = await File.ReadAllBytesAsync(imagePath, cancellationToken);
+            var contentType = GetImageContentType(fileInfo.Extension);
+            _logger.LogInformation("Inline image loaded for Teams message. ImagePath={ImagePath}, Size={Size}, ContentType={ContentType}", imagePath, contentBytes.Length, contentType);
+
+            return new ChatMessageHostedContent
+            {
+                ContentBytes = contentBytes,
+                ContentType = contentType,
+                AdditionalData = new Dictionary<string, object>
+                {
+                    ["@microsoft.graph.temporaryId"] = "1"
+                }
+            };
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Failed to load inline image. The Teams message will include text path only. ImagePath={ImagePath}", imagePath);
+            return null;
+        }
     }
 
     private async Task<string?> ResolveUserIdAsync(string userAddressOrId, CancellationToken cancellationToken)
@@ -195,6 +265,19 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
             {
                 ["user@odata.bind"] = $"https://graph.microsoft.com/v1.0/users('{userId}')"
             }
+        };
+    }
+
+    private static string GetImageContentType(string extension)
+    {
+        return extension.ToLowerInvariant() switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".bmp" => "image/bmp",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream"
         };
     }
 

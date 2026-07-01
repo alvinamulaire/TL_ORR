@@ -82,6 +82,11 @@ public sealed class StartupConfigurationValidator : IHostedService
             errors.Add("Teams:HttpTimeoutSeconds must be greater than 0.");
         }
 
+        if (_teamsOptions.MaxInlineImageBytes <= 0)
+        {
+            errors.Add("Teams:MaxInlineImageBytes must be greater than 0.");
+        }
+
         if (string.IsNullOrWhiteSpace(_fileShareOptions.ServerIP))
         {
             errors.Add("FileShare:ServerIP must be configured.");

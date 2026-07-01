@@ -27,4 +27,8 @@ public sealed class TeamsOptions
     public string CcTo { get; init; } = string.Empty;
 
     public int HttpTimeoutSeconds { get; init; } = 120;
+
+    public bool InlineImageEnabled { get; init; } = true;
+
+    public int MaxInlineImageBytes { get; init; } = 4 * 1024 * 1024;
 }
