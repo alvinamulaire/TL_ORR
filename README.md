@@ -48,7 +48,7 @@ Development defaults to `Worker:RunOnce = true`, so the worker runs one cycle an
 ## Phase 1 Acceptance
 
 - The log contains `Phase 1 Teams message simulation`.
-- The message includes employee number, SFC, Tool ID, Tool SN, check result, check time, image path, and an image link.
+- The message includes employee number, SFC, Tool ID, Tool SN, check result, check time, and image path.
 - The image path is converted from `C:\ImageBackup\...` to `\\172.16.2.176\ImageBackup\...`.
 - The `dbo.ProductIns` SQL row is updated with `IsSentTeams = 1` and a non-null `SentTeamsTime`.
 
@@ -88,7 +88,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\enable-teams-graph
 
 On first Graph run, the worker logs a device-code sign-in message. Sign in as the sender account. The token is cached under `Teams:TokenCacheName`, so later runs can reuse it.
 
-The Teams message shows both the UNC image path and an `Open image` link. Inline image preview is only added when the image source is an HTTP or HTTPS URL that Teams can access.
+The Teams message shows the UNC image path as text. Inline image preview is only added when the image source is an HTTP or HTTPS URL that Teams can access.
 
 Return to Console mode after a real-send test:
 
