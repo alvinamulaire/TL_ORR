@@ -60,6 +60,7 @@ public sealed class NotificationRecipientService : INotificationRecipientService
         while (await reader.ReadAsync(cancellationToken))
         {
             var email = reader.IsDBNull(0) ? string.Empty : reader.GetString(0);
+            email = NormalizeRecipient(email);
             if (!string.IsNullOrWhiteSpace(email))
             {
                 recipients.Add(email);
@@ -96,8 +97,16 @@ public sealed class NotificationRecipientService : INotificationRecipientService
     {
         return recipients
             .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(NormalizeRecipient)
             .Where(static recipient => !string.IsNullOrWhiteSpace(recipient))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
+    }
+
+    private static string NormalizeRecipient(string recipient)
+    {
+        return recipient
+            .Trim()
+            .Trim('\uFEFF', '\u200B', '\u200C', '\u200D');
     }
 }

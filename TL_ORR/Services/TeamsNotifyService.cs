@@ -110,18 +110,25 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
 
     private async Task SendGraphTeamsMessagesAsync(string content, string imagePath, IReadOnlyList<string> recipientEmails, CancellationToken cancellationToken)
     {
+        var senderUserEmail = NormalizeGraphUserAddress(_options.SenderUserEmail);
+        var normalizedRecipientEmails = recipientEmails
+            .Select(NormalizeGraphUserAddress)
+            .Where(static recipient => !string.IsNullOrWhiteSpace(recipient))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
         _logger.LogInformation(
             "Preparing Teams direct message(s). SenderUserEmail={SenderUserEmail}, TargetUserEmails={TargetUserEmails}",
-            _options.SenderUserEmail,
-            string.Join(';', recipientEmails));
+            senderUserEmail,
+            string.Join(';', normalizedRecipientEmails));
 
-        var senderUserId = await ResolveUserIdAsync(_options.SenderUserEmail, cancellationToken);
+        var senderUserId = await ResolveUserIdAsync(senderUserEmail, cancellationToken);
         if (string.IsNullOrWhiteSpace(senderUserId))
         {
-            throw new InvalidOperationException($"Cannot resolve sender Teams user. Sender={_options.SenderUserEmail}");
+            throw new InvalidOperationException($"Cannot resolve sender Teams user. Sender={senderUserEmail}");
         }
 
-        foreach (var recipientEmail in recipientEmails)
+        foreach (var recipientEmail in normalizedRecipientEmails)
         {
             await SendGraphTeamsMessageAsync(content, imagePath, senderUserId, recipientEmail, cancellationToken);
         }
@@ -242,8 +249,25 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
 
     private async Task<string?> ResolveUserIdAsync(string userAddressOrId, CancellationToken cancellationToken)
     {
-        var user = await _graphClient.Value.Users[userAddressOrId].GetAsync(cancellationToken: cancellationToken);
-        return user?.Id;
+        var normalizedUserAddressOrId = NormalizeGraphUserAddress(userAddressOrId);
+        if (string.IsNullOrWhiteSpace(normalizedUserAddressOrId))
+        {
+            return null;
+        }
+
+        try
+        {
+            var user = await _graphClient.Value.Users[normalizedUserAddressOrId].GetAsync(cancellationToken: cancellationToken);
+            return user?.Id;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            throw new InvalidOperationException(
+                $"Cannot resolve Teams user through Microsoft Graph. User={normalizedUserAddressOrId}. " +
+                "If a device-code sign-in prompt was just printed, complete that sign-in with the service account and run again. " +
+                $"GraphError={ex.Message}",
+                ex);
+        }
     }
 
     private GraphServiceClient CreateGraphClient()
@@ -325,8 +349,17 @@ public sealed class TeamsNotifyService : ITeamsNotifyService
     {
         return recipients
             .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(NormalizeGraphUserAddress)
             .Where(static recipient => !string.IsNullOrWhiteSpace(recipient))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
+    }
+
+    private static string NormalizeGraphUserAddress(string userAddressOrId)
+    {
+        return userAddressOrId
+            .Trim()
+            .Trim('\uFEFF', '\u200B', '\u200C', '\u200D');
     }
 
 }
