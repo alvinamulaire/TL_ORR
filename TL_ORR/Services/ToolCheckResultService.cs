@@ -1,4 +1,4 @@
-using Microsoft.Data.SqlClient;
+using System.Data.SqlClient;
 using Microsoft.Extensions.Options;
 using TL_ORR.Models;
 using TL_ORR.Options;

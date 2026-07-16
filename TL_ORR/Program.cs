@@ -4,8 +4,6 @@ using TL_ORR;
 using TL_ORR.Options;
 using TL_ORR.Services;
 
-AppContext.SetSwitch("Switch.Microsoft.Data.SqlClient.UseManagedNetworkingOnWindows", true);
-
 var builder = Host.CreateApplicationBuilder(args);
 const string ServiceName = "TL_ORR Teams NG Notify Service";
 

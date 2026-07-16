@@ -3,7 +3,7 @@
 ## Completed
 
 - .NET 8 Worker Service project is implemented.
-- SQL Server access layer is implemented with `Microsoft.Data.SqlClient`.
+- SQL Server access layer is implemented with `System.Data.SqlClient` for Windows Server deployment compatibility.
 - Source table is `dbo.ProductIns`.
 - `dbo.ProductIns.ID` is used as the update key.
 - Pending NG query is implemented:
