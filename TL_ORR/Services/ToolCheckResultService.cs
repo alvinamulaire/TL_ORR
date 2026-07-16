@@ -9,11 +9,16 @@ public sealed class ToolCheckResultService : IToolCheckResultService
 {
     private readonly IConfiguration _configuration;
     private readonly WorkerOptions _workerOptions;
+    private readonly ILogger<ToolCheckResultService> _logger;
 
-    public ToolCheckResultService(IConfiguration configuration, IOptions<WorkerOptions> workerOptions)
+    public ToolCheckResultService(
+        IConfiguration configuration,
+        IOptions<WorkerOptions> workerOptions,
+        ILogger<ToolCheckResultService> logger)
     {
         _configuration = configuration;
         _workerOptions = workerOptions.Value;
+        _logger = logger;
     }
 
     public async Task<IReadOnlyList<ToolCheckResult>> GetPendingNgResultsAsync(int batchSize, CancellationToken cancellationToken)
@@ -111,8 +116,41 @@ public sealed class ToolCheckResultService : IToolCheckResultService
         var affectedRows = await command.ExecuteNonQueryAsync(cancellationToken);
         if (affectedRows == 0)
         {
+            if (await IsAlreadyMarkedSentAsync(connection, result, cancellationToken))
+            {
+                _logger.LogWarning(
+                    "ProductIns row was already marked as sent before status update. Treating as successful. RecordKey={RecordKey}",
+                    result.RecordKey);
+                return;
+            }
+
             throw new InvalidOperationException($"No pending ProductIns row was updated. RecordKey={result.RecordKey}");
         }
+    }
+
+    private async Task<bool> IsAlreadyMarkedSentAsync(SqlConnection connection, ToolCheckResult result, CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT TOP (1)
+                CAST(CheckResult AS nvarchar(20)) AS CheckResult,
+                IsSentTeams
+            FROM dbo.ProductIns
+            WHERE ID = @ID;
+            """;
+
+        await using var command = new SqlCommand(sql, connection);
+        command.CommandTimeout = SqlCommandTimeoutSeconds;
+        command.Parameters.AddWithValue("@ID", result.Id);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return false;
+        }
+
+        var checkResult = GetStringOrEmpty(reader, 0);
+        var isSentTeams = !reader.IsDBNull(1) && reader.GetBoolean(1);
+        return string.Equals(checkResult, "NG", StringComparison.OrdinalIgnoreCase) && isSentTeams;
     }
 
     private SqlConnection CreateConnection()
